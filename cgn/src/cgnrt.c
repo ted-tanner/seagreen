@@ -1,99 +1,123 @@
 #include "cgnrt.h"
 
 #include <stdio.h>
+#include <sys/_types/_size_t.h>
 
-__CGNDescriptorList __cgn_descl;
+__CGNThreadList __cgn_threadl = {0};
 
-static void add_block(void) {
-    __CGNDescriptorBlock *block = malloc(sizeof(__CGNDescriptorBlock));
+static __CGNThreadBlock *add_block(void) {
+    __CGNThreadBlock *block = malloc(sizeof(__CGNThreadBlock));
     __CGN_CHECK_MALLOC(block);
 
     block->next = 0;
-    block->unused_descriptors = UINT64_MAX;
+    block->prev = 0;
+    block->unused_threads = UINT64_MAX;
 
-    if (!__cgn_descl.head) {
-	__cgn_descl.head = block;
-	__cgn_descl.tail = block;
-    } else {
-	__cgn_descl.tail->next = block;
-	__cgn_descl.tail = block;
-    }
+    __cgn_threadl.tail->next = block;
+    block->prev = __cgn_threadl.tail;
+    __cgn_threadl.tail = block;
+
+    ++__cgn_threadl.block_count;
+
+    return block;
 }
 
-static void add_descriptor(__CGNDescriptor desc) {
-    if (!__cgn_descl.head) {
-	add_block();
-	__cgn_descl.head = __cgn_descl.tail;
-    }
+static void add_thread(void *data, size_t data_size) {
+    __CGNThreadBlock *block = __cgn_threadl.tail;
 
-    __CGNDescriptorBlock *block = __cgn_descl.head;
-
-    while (!block->unused_descriptors) {
-	if (!block->next) {
-	    add_block();
+    size_t block_pos = __cgn_threadl.block_count - 1;
+    while (!block->unused_threads) {
+	if (!block->prev) {
+	    block = add_block();
+	    break;
+	} else {
+	    block = block->prev;
+	    --block_pos;
 	}
-
-        block = block->next;
     }
 
     size_t pos = 0;
-    // Treat the unused_descriptors int as an array of bits and find the index
+    // Treat the unused_threads int as an array of bits and find the index
     // of the most significant bit
-    for (; !((block->unused_descriptors << pos) & (1ULL << 63)); ++pos);
+    for (; !((block->unused_threads << pos) & (1ULL << 63)); ++pos);
 
-    // Mark descriptor as used
-    block->unused_descriptors &= ~(1ULL << (63 - pos));
+    // TODO: Need to find the next thread
 
-    block->descriptors[pos] = desc;
+    // Mark thread as used
+    block->unused_threads &= ~(1ULL << (63 - pos));
+
+    block->threads[pos].data = data;
+    block->threads[pos].data_size = data_size;
+    block->threads[pos].pos = 64 * block_pos + pos;
+
+    // TODO: Insert thread into linked thread list
+
+    ++__cgn_threadl.thread_count;
 }
 
-// TODO: Remove descriptor
+static void remove_thread(size_t pos) {
+    __CGNThreadBlock *block;
+
+    size_t block_pos = pos / 64;
+
+    if (block_pos > __cgn_threadl.block_count / 2) {
+	block = __cgn_threadl.tail;
+	for (size_t i = __cgn_threadl.block_count - 1; i > block_pos; --i, block = block->prev);
+    } else {
+	block = __cgn_threadl.head;
+	for (size_t i = 0; i < block_pos; ++i, block = block->next);
+    }
+
+    block->unused_threads |= 1ULL << (63 - (pos % 64));
+    --__cgn_threadl.thread_count;
+
+    // TODO: Remove thread from linked thread list
+}
+
+void cgn_init_rt(void) {
+    if (__cgn_threadl.head) {
+	// No need to initialize if already initialized
+	// TODO: Perhaps this should return an error code
+	return;
+    }
+
+    __CGNThreadBlock *block = malloc(sizeof(__CGNThreadBlock));
+    __CGN_CHECK_MALLOC(block);
+
+    block->next = 0;
+    block->prev = 0;
+    block->unused_threads = UINT64_MAX;
+
+    __cgn_threadl.head = block;
+    __cgn_threadl.tail = block;
+    __cgn_threadl.block_count = 1;
+    __cgn_threadl.thread_count = 0;
+}
+
 
 #ifdef CGN_TEST
 
 #include "cgntest/test.h"
 
-static TEST_RESULT test_add_descriptor(void) {
-    cgnasrt(__cgn_descl.head == 0, "Invalid initial state of descriptor list");
-    cgnasrt(__cgn_descl.tail == 0, "Invalid initial state of descriptor list");
+static TEST_RESULT test_add_thread(void) {
+    // TODO
+    cgn_init_rt();
+    add_thread(0, 0);
+    return TEST_PASS;
+}
 
-    __CGNDescriptor desc = {
-	.data = (void*) 0xdeadbeef,
-	.data_size = 42,
-    };
-
-    add_descriptor(desc);
-
-    cgnasrt(__cgn_descl.head > 0, "Descriptor list head should get set when first descriptor is added");
-    cgnasrt(__cgn_descl.head == __cgn_descl.head, "Descriptor list tail should equal head when there is only one block");
-
-    cgnasrt(__cgn_descl.head->next == 0, "Descriptor list should only have one block");
-    cgnasrt(__cgn_descl.head->unused_descriptors == 0x7fffffffffffffffULL, "Descriptor list should have 63 unused descriptors");
-    cgnasrt(__cgn_descl.head->descriptors[0].data == (void*) 0xdeadbeef, "Incorrect descriptor data or position");
-    cgnasrt(__cgn_descl.head->descriptors[0].data_size == 42, "Incorrect descriptor data or position");
-
-    desc.data = (void*) 0xcafebabe;
-    desc.data_size = 43;
-
-    add_descriptor(desc);
-
-    cgnasrt(__cgn_descl.head->next == 0, "Descriptor list should only have one block");
-    cgnasrt(__cgn_descl.head->unused_descriptors == 0x3fffffffffffffffULL, "Descriptor list should have 62 unused descriptors");
-    cgnasrt(__cgn_descl.head->descriptors[0].data == (void*) 0xdeadbeef, "Incorrect descriptor data or position");
-    cgnasrt(__cgn_descl.head->descriptors[0].data_size == 42, "Incorrect descriptor data or position");
-    cgnasrt(__cgn_descl.head->descriptors[1].data == (void*) 0xcafebabe, "Incorrect descriptor data or position");
-    cgnasrt(__cgn_descl.head->descriptors[1].data_size == 43, "Incorrect descriptor data or position");
-
-    // TODO: Try freeing a descriptor and see if it gets marked as unused, then try adding one and see if it gets marked as used
-    // TODO: Try adding a descriptor to a full block and see if a new block gets allocated
-
+static TEST_RESULT test_remove_thread(void) {
+    // TODO
+    cgn_init_rt();
+    remove_thread(0);
     return TEST_PASS;
 }
 
 void register_cgnrt_tests() {
     CgnTestSet *set = new_test_set(__FILE__);
 
-    register_test(set, test_add_descriptor);
+    register_test(set, test_add_thread);
+    register_test(set, test_remove_thread);
 }
 
 #endif
