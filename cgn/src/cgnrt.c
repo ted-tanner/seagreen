@@ -47,6 +47,8 @@ static void add_descriptor(__CGNDescriptor desc) {
     block->descriptors[pos] = desc;
 }
 
+// TODO: Remove descriptor
+
 #ifdef CGN_TEST
 
 #include "cgntest/test.h"
@@ -59,6 +61,7 @@ static TEST_RESULT test_add_descriptor(void) {
 	.data = (void*) 0xdeadbeef,
 	.data_size = 42,
     };
+
     add_descriptor(desc);
 
     cgnasrt(__cgn_descl.head > 0, "Descriptor list head should get set when first descriptor is added");
@@ -66,16 +69,20 @@ static TEST_RESULT test_add_descriptor(void) {
 
     cgnasrt(__cgn_descl.head->next == 0, "Descriptor list should only have one block");
     cgnasrt(__cgn_descl.head->unused_descriptors == 0x7fffffffffffffffULL, "Descriptor list should have 63 unused descriptors");
+    cgnasrt(__cgn_descl.head->descriptors[0].data == (void*) 0xdeadbeef, "Incorrect descriptor data or position");
+    cgnasrt(__cgn_descl.head->descriptors[0].data_size == 42, "Incorrect descriptor data or position");
 
-    // TODO: Test desc is in the correct position in the block, then change desc.data_size for the next desc to be added
+    desc.data = (void*) 0xcafebabe;
+    desc.data_size = 43;
 
     add_descriptor(desc);
+
     cgnasrt(__cgn_descl.head->next == 0, "Descriptor list should only have one block");
     cgnasrt(__cgn_descl.head->unused_descriptors == 0x3fffffffffffffffULL, "Descriptor list should have 62 unused descriptors");
-
-    add_descriptor(desc);
-    cgnasrt(__cgn_descl.head->next == 0, "Descriptor list should only have one block");
-    cgnasrt(__cgn_descl.head->unused_descriptors == 0x1fffffffffffffffULL, "Descriptor list should have 61 unused descriptors");
+    cgnasrt(__cgn_descl.head->descriptors[0].data == (void*) 0xdeadbeef, "Incorrect descriptor data or position");
+    cgnasrt(__cgn_descl.head->descriptors[0].data_size == 42, "Incorrect descriptor data or position");
+    cgnasrt(__cgn_descl.head->descriptors[1].data == (void*) 0xcafebabe, "Incorrect descriptor data or position");
+    cgnasrt(__cgn_descl.head->descriptors[1].data_size == 43, "Incorrect descriptor data or position");
 
     // TODO: Try freeing a descriptor and see if it gets marked as unused, then try adding one and see if it gets marked as used
     // TODO: Try adding a descriptor to a full block and see if a new block gets allocated
