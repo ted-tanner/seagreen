@@ -16,7 +16,7 @@ fi
 FLAGS="-Wall -Wextra -Werror -std=c99 -g"
 
 OUT_DIR=target
-LIB_NAME=sglib
+LIB_NAME=cgnlib
 
 SRC_DIR=src
 INCLUDE_DIR=include
@@ -25,7 +25,7 @@ TEST_SRC_DIR=test
 SRC_FILES=$(echo $(find $SRC_DIR -type f -name "*.c"))
 TEST_SRC_FILES=$(echo $(find $TEST_SRC_DIR -type f -name "*.c"))
 
-if [[ $# -gt 1 || !($1 = "clean" || $1 = "test" || $1 = "release") ]]; then
+if [[ $# -gt 1 || !($1 = "clean" || $1 = "test" || $1 = "release" || $1 = "") ]]; then
     echo "Usage: ./$(basename $0) <clean|test|release>"
     exit 1
 fi
@@ -38,7 +38,7 @@ fi
 function build_objs {
     if [[ $1 = "test" ]]; then
         FILES="$SRC_FILES $TEST_SRC_FILES"
-        MACROS="-DSG_TEST"
+        MACROS="-DCGN_TEST"
         OUT="$OUT_DIR/test"
     else
         FILES="$SRC_FILES"
@@ -66,7 +66,7 @@ function build_testexec {
     OUT="$OUT_DIR/test"
 
     FILES="$OUT/$LIB_NAME.a $TEST_SRC_DIR/main.c"
-    MACROS="-DSG_TEST"
+    MACROS="-DCGN_TEST"
 
     mkdir -p $OUT
 

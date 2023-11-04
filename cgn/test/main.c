@@ -1,10 +1,9 @@
 #include <setjmp.h>
 #include <signal.h>
-#include <stdio.h>
 #include <unistd.h>
 
-#include "sgrt.h"
-#include "sgtest/test.h"
+#include "cgnrt.h"
+#include "cgntest/test.h"
 
 jmp_buf jump_buf;
 
@@ -21,12 +20,12 @@ int main(int argc, char **argv) {
             no_capture = 1;
 	}
     }
-    
-    static ModuleTestSet test_sets[TEST_MAX_SET_COUNT] = {0};
-    
-    int test_set_count = 0;
-    test_sets[test_set_count++] = register_sgrt_tests();
 
+    register_cgnrt_tests();
+
+    CgnTestSet *test_sets = get_test_sets();
+    int test_set_count = get_test_set_count();
+    
     printf("Running tests...\n");
 
     int passed = 0;
@@ -35,9 +34,9 @@ int main(int argc, char **argv) {
     signal(SIGABRT, abort_handler);
     
     for (int i = 0; i < test_set_count; ++i) {
-        ModuleTestSet *set = test_sets + i;
+        CgnTestSet *set = test_sets + i;
 
-        printf("\n%s\n", set->module_name);
+        printf("\n%s\n", set->name);
         
         for (int j = 0; j < set->count; ++j) {
             Test *test = set->tests + j;
@@ -123,8 +122,8 @@ int main(int argc, char **argv) {
 
 
 // Planned interface
-// #include "sgrt.h"
-// #include "sgfut.h"
+// #include "cgnrt.h"
+// #include "cgnfut.h"
 
 // typedef struct _MyOwnType {
 //     float a;
@@ -132,42 +131,42 @@ int main(int argc, char **argv) {
 // } MyOwnType;
 
 // // If necessary
-// SGDeclare(MyOwnType);
-// SGDeclare(int);
-// SGDeclare(void);
+// CGNDeclare(MyOwnType);
+// CGNDeclare(int);
+// CGNDeclare(void);
 
-// SGFut(MyOwnType) fake_io() {
+// CGNFut(MyOwnType) fake_io() {
 //     MyOwnType data = {
 // 	.a = 2.5f,
 // 	.b = 7.5f,
 //     };
 
-//     return sg_fut_from(data);
+//     return cgn_fut_from(data);
 // }
 
-// SGFut(int) io_func() {
-//     SGFut(int) res = sg_block_on(do_io());
+// CGNFut(int) io_func() {
+//     CGNFut(int) res = cgn_block_on(do_io());
 //     return res;
 // }
 
-// int cpu_func(SGFut(void) io_res) {
-//     int res = sg_await(io_func());
-//     float a = sg_await(fake_io());
+// int cpu_func(CGNFut(void) io_res) {
+//     int res = cgn_await(io_func());
+//     float a = cgn_await(fake_io());
 //     return res + a;
 // }
 
-// int sg_main() {
+// int cgn_main() {
 //     int res = cpu_func();
 //     return 0;
 // }
 
 // int main() {
-//     int sgrt_err;
-//     int sg_main_return = sg_start_rt(&sg_main, &sgrt_err);
+//     int cgnrt_err;
+//     int cgn_main_return = cgn_start_rt(&cgn_main, &cgnrt_err);
 
-//     if (sgrt_err != 0) {
+//     if (cgnrt_err != 0) {
 // 	// Handle error from the runtime
 //     }
 
-//     return sg_main_return;
+//     return cgn_main_return;
 // }
