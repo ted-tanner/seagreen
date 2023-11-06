@@ -13,7 +13,7 @@ else
     OPT_LEVEL=O0
 fi
 
-FLAGS="-Wall -Wextra -Werror -std=c99 -g"
+FLAGS="-Wall -Wextra -Werror -std=c11 -g"
 
 OUT_DIR=target
 LIB_NAME=cgnlib
