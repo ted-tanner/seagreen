@@ -41,7 +41,6 @@ static void add_thread(void *data, size_t data_size) {
     size_t prev_pos = 0;
     // Treat the unused_threads int as an array of bits and find the index
     // of the most significant bit
-
     for (; !((block->unused_threads << pos) & (1ULL << 63)); ++pos) {
 	prev_pos = pos;
     }
@@ -50,6 +49,12 @@ static void add_thread(void *data, size_t data_size) {
     block->unused_threads &= ~(1ULL << (63 - pos));
     __CGNThread *thread = &block->threads[pos];
 
+    thread->data = data;
+    thread->data_size = data_size;
+    thread->pos = 64 * block_pos + pos;
+
+    // Still need to set thread->next and insert thread into linked list (by setting
+    // thread->next AND modifying the previous thread's next pointer)
     if (prev_pos == pos) {
 	// Previous thread is not found in this block, look to previous block
 	// (because of previous while loop, we know that there is a used thread in
@@ -76,7 +81,7 @@ static void add_thread(void *data, size_t data_size) {
 		}
 
 		if (next_pos == 64) {
-		    // Reached end of list, no threads found. 
+		    // Reached end of list, no threads found.
 		    thread->next = 0;
 		} else {
 		    thread->next = &next_block->threads[next_pos];
@@ -89,10 +94,6 @@ static void add_thread(void *data, size_t data_size) {
 	thread->next = block->threads[prev_pos].next;
 	block->threads[prev_pos].next = thread;
     }
-
-    thread->data = data;
-    thread->data_size = data_size;
-    thread->pos = 64 * block_pos + pos;
 
     ++__cgn_threadl.thread_count;
 }
@@ -113,7 +114,9 @@ static void remove_thread(size_t pos) {
     block->unused_threads |= 1ULL << (63 - (pos % 64));
     --__cgn_threadl.thread_count;
 
-    // TODO: Remove thread from linked thread list
+    // TODO: Remove thread from linked thread list. Should be able to copy some code from
+    //       add_thread, but no need to search forward for next thread. We just need to find
+    //       the previous thread
 }
 
 void cgn_init_rt(void) {
