@@ -22,6 +22,7 @@ static __CGNThreadBlock *add_block(void) {
     return block;
 }
 
+// TODO: This needs extensive testing. EVERY BRANCH needs to be validated
 static void add_thread(void *data, size_t data_size) {
     __CGNThreadBlock *block = __cgn_threadl.tail;
 
@@ -37,20 +38,61 @@ static void add_thread(void *data, size_t data_size) {
     }
 
     size_t pos = 0;
+    size_t prev_pos = 0;
     // Treat the unused_threads int as an array of bits and find the index
     // of the most significant bit
-    for (; !((block->unused_threads << pos) & (1ULL << 63)); ++pos);
 
-    // TODO: Need to find the next thread
+    for (; !((block->unused_threads << pos) & (1ULL << 63)); ++pos) {
+	prev_pos = pos;
+    }
 
     // Mark thread as used
     block->unused_threads &= ~(1ULL << (63 - pos));
+    __CGNThread *thread = &block->threads[pos];
 
-    block->threads[pos].data = data;
-    block->threads[pos].data_size = data_size;
-    block->threads[pos].pos = 64 * block_pos + pos;
+    if (prev_pos == pos) {
+	// Previous thread is not found in this block, look to previous block
+	// (because of previous while loop, we know that there is a used thread in
+	// the previous block, if a previous block exists)
+	__CGNThreadBlock *prev_block = block->prev;
+	if (prev_block) {
+	    size_t prev_pos_from_right = 0;
+	    for (; prev_block->unused_threads & (1ULL << prev_pos_from_right); ++prev_pos_from_right);
+	    prev_pos = 63 - prev_pos_from_right;
 
-    // TODO: Insert thread into linked thread list
+	    thread->next = prev_block->threads[prev_pos].next;
+	    prev_block->threads[prev_pos].next = thread;
+	} else {
+	    // No previous block exists, must search forward (and no need to set the next
+	    // pointer on a previous thread)
+	    size_t next_pos = pos + 1;
+	    for (; next_pos < 64 && ((block->unused_threads << next_pos) & (1ULL << 63)); ++next_pos);
+
+	    if (next_pos == 64) {
+		// Not found in this block, look to next block until found or no more blocks
+		__CGNThreadBlock *next_block = block->next;
+		for (; next_pos == 64 && next_block; next_block = next_block->next, next_pos = 0) {
+		    for (; next_pos < 64 && ((next_block->unused_threads << next_pos) & (1ULL << 63)); ++next_pos);
+		}
+
+		if (next_pos == 64) {
+		    // Reached end of list, no threads found. 
+		    thread->next = 0;
+		} else {
+		    thread->next = &next_block->threads[next_pos];
+		}
+	    } else {
+		thread->next = &block->threads[next_pos];
+	    }
+	}
+    } else {
+	thread->next = block->threads[prev_pos].next;
+	block->threads[prev_pos].next = thread;
+    }
+
+    thread->data = data;
+    thread->data_size = data_size;
+    thread->pos = 64 * block_pos + pos;
 
     ++__cgn_threadl.thread_count;
 }
