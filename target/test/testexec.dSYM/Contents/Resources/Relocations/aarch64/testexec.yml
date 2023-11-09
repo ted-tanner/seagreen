@@ -1,0 +1,25 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     'target/test/testexec'
+relocations:
+  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _cgn_init_rt, symObjAddr: 0x0, symBinAddr: 0x100002F4C, symSize: 0xA8 }
+  - { offsetInCU: 0x3F, offset: 0x3F, size: 0x8, addend: 0x0, symName: ___cgn_threadl, symObjAddr: 0x1B88, symBinAddr: 0x100008000, symSize: 0x0 }
+  - { offsetInCU: 0x18A, offset: 0x18A, size: 0x8, addend: 0x0, symName: _cgn_init_rt, symObjAddr: 0x0, symBinAddr: 0x100002F4C, symSize: 0xA8 }
+  - { offsetInCU: 0x1AE, offset: 0x1AE, size: 0x8, addend: 0x0, symName: _register_cgnrt_tests, symObjAddr: 0xA8, symBinAddr: 0x100002FF4, symSize: 0x58 }
+  - { offsetInCU: 0x1D2, offset: 0x1D2, size: 0x8, addend: 0x0, symName: _test_add_thread, symObjAddr: 0x100, symBinAddr: 0x10000304C, symSize: 0x24 }
+  - { offsetInCU: 0x1EB, offset: 0x1EB, size: 0x8, addend: 0x0, symName: _test_remove_thread, symObjAddr: 0x124, symBinAddr: 0x100003070, symSize: 0x20 }
+  - { offsetInCU: 0x204, offset: 0x204, size: 0x8, addend: 0x0, symName: _add_thread, symObjAddr: 0x144, symBinAddr: 0x100003090, symSize: 0x404 }
+  - { offsetInCU: 0x2EC, offset: 0x2EC, size: 0x8, addend: 0x0, symName: _add_block, symObjAddr: 0x548, symBinAddr: 0x100003494, symSize: 0x98 }
+  - { offsetInCU: 0x314, offset: 0x314, size: 0x8, addend: 0x0, symName: _remove_thread, symObjAddr: 0x5E0, symBinAddr: 0x10000352C, symSize: 0x138 }
+  - { offsetInCU: 0x26, offset: 0x479, size: 0x8, addend: 0x0, symName: __register_test, symObjAddr: 0x0, symBinAddr: 0x100003664, symSize: 0xD0 }
+  - { offsetInCU: 0x3F, offset: 0x492, size: 0x8, addend: 0x0, symName: _set_count, symObjAddr: 0xC28, symBinAddr: 0x100008020, symSize: 0x0 }
+  - { offsetInCU: 0x69, offset: 0x4BC, size: 0x8, addend: 0x0, symName: _test_sets, symBinAddr: 0x100008028, symSize: 0x0 }
+  - { offsetInCU: 0x150, offset: 0x5A3, size: 0x8, addend: 0x0, symName: __register_test, symObjAddr: 0x0, symBinAddr: 0x100003664, symSize: 0xD0 }
+  - { offsetInCU: 0x19E, offset: 0x5F1, size: 0x8, addend: 0x0, symName: _new_test_set, symObjAddr: 0xD0, symBinAddr: 0x100003734, symSize: 0xD4 }
+  - { offsetInCU: 0x1D4, offset: 0x627, size: 0x8, addend: 0x0, symName: _get_test_sets, symObjAddr: 0x1A4, symBinAddr: 0x100003808, symSize: 0xC }
+  - { offsetInCU: 0x1ED, offset: 0x640, size: 0x8, addend: 0x0, symName: _get_test_set_count, symObjAddr: 0x1B0, symBinAddr: 0x100003814, symSize: 0xC }
+  - { offsetInCU: 0x26, offset: 0x689, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x0, symBinAddr: 0x100003820, symSize: 0x4E0 }
+  - { offsetInCU: 0x4D, offset: 0x6B0, size: 0x8, addend: 0x0, symName: _jump_buf, symBinAddr: 0x100430228, symSize: 0x0 }
+  - { offsetInCU: 0x90, offset: 0x6F3, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x0, symBinAddr: 0x100003820, symSize: 0x4E0 }
+  - { offsetInCU: 0x20A, offset: 0x86D, size: 0x8, addend: 0x0, symName: _abort_handler, symObjAddr: 0x4E0, symBinAddr: 0x100003D00, symSize: 0x20 }
+...

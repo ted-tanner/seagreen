@@ -16,7 +16,7 @@ fi
 FLAGS="-Wall -Wextra -Werror -std=c11 -g"
 
 OUT_DIR=target
-LIB_NAME=cgnlib
+LIB_NAME=seagreenlib
 
 SRC_DIR=src
 INCLUDE_DIR=include
@@ -65,7 +65,7 @@ function build_objs {
 function build_testexec {
     OUT="$OUT_DIR/test"
 
-    FILES="$OUT/$LIB_NAME.a $TEST_SRC_DIR/main.c"
+    FILES="$OUT/$LIB_NAME.a $TEST_SRC_DIR/testsuitemain.c"
     MACROS="-DCGN_TEST"
 
     mkdir -p $OUT

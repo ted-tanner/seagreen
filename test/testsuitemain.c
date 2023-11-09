@@ -2,7 +2,7 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "cgnrt.h"
+#include "seagreen.h"
 #include "cgntest/test.h"
 
 jmp_buf jump_buf;
@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
 	}
     }
 
-    register_cgnrt_tests();
+    register_seagreen_tests();
 
     CgnTestSet *test_sets = get_test_sets();
     int test_set_count = get_test_set_count();
