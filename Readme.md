@@ -1,4 +1,4 @@
-# <span style="color:seagreen">SeaGreen (seagreenlib)</span>
+# SeaGreen (seagreenlib)
 
 A green threading library ~~for Sea~~ for C.
 
