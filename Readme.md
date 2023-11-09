@@ -1,6 +1,8 @@
-# ![SeaGreen Pirate Ship Icon](/seagreen-pirate-ship-icon.svg) <span style="color:seagreen">SeaGreen (seagreenlib)</span>
+# <span style="color:seagreen">SeaGreen (seagreenlib)</span>
 
 A green threading library ~~for Sea~~ for C.
+
+![SeaGreen Pirate Ship Icon](/seagreen-pirate-ship-icon.svg)
 
 ## The SeaGreen Pirate's Code (invariants/rules for using the library)
 
