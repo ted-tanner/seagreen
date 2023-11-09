@@ -2,40 +2,37 @@
 
 #include <stdint.h>
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
 
 typedef struct __CGNThreadCtx_ {
-    uint64_t ret;
     uint64_t rsp;
-
-    uint64_t rax;
-    uint64_t rbx;
-    uint64_t rcx;
-    uint64_t rdx;
-    uint64_t rsi;
-    uint64_t rdi;
     uint64_t rbp;
+
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t rbx;
 } __CGNThreadCtx;
 
-#elif defined(__i386__)
+#elif defined(__x86_64__) && defined(_WIN64)
 
 typedef struct __CGNThreadCtx_ {
-    uint32_t ret;
-    uint32_t esp;
+    uint64_t rsp;
+    uint64_t rbp;
 
-    uint32_t eax;
-    uint32_t ebx;
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t ebp;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t rbx;
+    uint64_t rdi;
 } __CGNThreadCtx;
 
 #elif defined(__aarch64__)
 
 typedef struct __CGNThreadCtx_ {
-    uint64_t lr; // Link register
+    uint64_t lr;
     uint64_t sp;
 
     uint64_t x19;
@@ -52,7 +49,7 @@ typedef struct __CGNThreadCtx_ {
 } __CGNThxeadCtx;
 
 #elif defined(__riscv__)
-// TODO: Save the frame pointer
+
 typedef struct __CGNThreadCtx_ {
     uint64_t ra;
     uint64_t sp;
@@ -73,11 +70,12 @@ typedef struct __CGNThreadCtx_ {
 
 #else
 
-#error "Unsupported architecture"
+#error "seagreenlib does not support this architecture"
 
 #endif
 
-void ctxswitch(__CGNThreadCtx *oldctx, __CGNThreadCtx *newctx);
+extern void ctxswitch(__CGNThreadCtx *oldctx, __CGNThreadCtx *newctx);
+extern void getctx(__CGNThreadCtx *ctx);
 
 #define CGN_COROUTINE_H
 #endif

@@ -35,12 +35,15 @@ int main(void) {
 
     printf("Starting foo(1, 2)...\n");
     CGNThreadHandle h1 = async_run(foo(1, 2));
+    // TODO: async_run() should yield;
+
     printf("Starting foo(3, 4)...\n");
     CGNThreadHandle h2 = async_run(foo(3, 4));
 
     printf("Awaiting...\n");
 
     int foo1_res = await(h1);
+    // TODO: await() should yield;
     printf("foo(1, 2) returned %d\n", foo1_res);
 
     int foo2_res = await(h2);

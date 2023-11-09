@@ -1,7 +1,7 @@
 #ifndef SEAGREEN_H
 
 #if !defined __GNUC__ && !defined __clang__
-#error "seagreenlib requires GCC or Clang"
+#error "seagreenlib can only be compiled with GCC or Clang"
 #endif
 
 #include <stdint.h>
@@ -40,10 +40,7 @@ typedef struct __CGNThreadList_ {
 
 #define __CGN_CHECK_MALLOC(ptr) if (!ptr) abort();
 
-// TODO: cgn_init
 void cgn_init_rt(void);
-// TODO: void cgn_init_rt_single_os_thread(void);
-// TODO: cgn_free_rt
 
 typedef struct __cgn_async_value_ {
     uintmax_t value;

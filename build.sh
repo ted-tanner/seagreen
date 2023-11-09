@@ -22,7 +22,7 @@ SRC_DIR=src
 INCLUDE_DIR=include
 TEST_SRC_DIR=test
 
-SRC_FILES=$(echo $(find $SRC_DIR -type f -name "*.c"))
+SRC_FILES=$(echo $(find $SRC_DIR -type f -name "*.c") $(find src -type f -name "*.S"))
 TEST_SRC_FILES=$(echo $(find $TEST_SRC_DIR -type f -name "*.c"))
 
 if [[ $# -gt 1 || !($1 = "clean" || $1 = "test" || $1 = "release" || $1 = "") ]]; then
