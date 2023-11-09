@@ -7,43 +7,39 @@
 #elif defined(__aarch64__)
 
 ctxswitch:
-        // Copy parameter registers
-        mv x2, x0
-        mv x3, x1
+        str lr, [x0, 0]
+        str sp, [x0, 8] 
 
-        str lr, [x2, 0]
-        str sp, [x2, 8] 
+        str x19, [x0, 16]
+        str x20, [x0, 24]
+        str x21, [x0, 32]
+        str x22, [x0, 40]
+        str x23, [x0, 48]
+        str x24, [x0, 56]
+        str x25, [x0, 64]
+        str x26, [x0, 72]
+        str x27, [x0, 80]
+        str x28, [x0, 88]
+        str x29, [x0, 96]
 
-        str x19, [x2, 16]
-        str x20, [x2, 24]
-        str x21, [x2, 32]
-        str x22, [x2, 40]
-        str x23, [x2, 48]
-        str x24, [x2, 56]
-        str x25, [x2, 64]
-        str x26, [x2, 72]
-        str x27, [x2, 80]
-        str x28, [x2, 88]
-        str x29, [x2, 96]
+        ldr lr, [x1, 0]
+        ldr sp, [x1, 8]
 
-        ldr lr, [x3, 0]
-        ldr sp, [x3, 8]
-
-        ldr x19 [x3, 16]
-        ldr x20 [x3, 24]
-        ldr x21 [x3, 32]
-        ldr x22 [x3, 40]
-        ldr x23 [x3, 48]
-        ldr x24 [x3, 56]
-        ldr x25 [x3, 64]
-        ldr x26 [x3, 72]
-        ldr x27 [x3, 80]
-        ldr x28 [x3, 88]
-        ldr x29 [x3, 96]
+        ldr x19 [x1, 16]
+        ldr x20 [x1, 24]
+        ldr x21 [x1, 32]
+        ldr x22 [x1, 40]
+        ldr x23 [x1, 48]
+        ldr x24 [x1, 56]
+        ldr x25 [x1, 64]
+        ldr x26 [x1, 72]
+        ldr x27 [x1, 80]
+        ldr x28 [x1, 88]
+        ldr x29 [x1, 96]
 
         ret
         
-#elif defined(__riscv)
+#elif defined(__riscv__)
 
 ctxswitch:
         sd ra, 0(a0)
