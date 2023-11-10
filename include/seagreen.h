@@ -38,7 +38,7 @@ typedef struct __CGNThreadList_ {
     size_t thread_count;
 } __CGNThreadList;
 
-#define __CGN_CHECK_MALLOC(ptr) if (!ptr) abort();
+#define __cgn_check_malloc(ptr) if (!ptr) abort();
 
 void seagreen_init_rt(void);
 // TODO: seagreen_free_rt()

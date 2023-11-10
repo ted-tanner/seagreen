@@ -23,6 +23,7 @@ Some additional niceties of SeaGreen:
 * If ye call `async_run()`, `await()`, `seagreen_yield()`, or `async_block_on()` after calling `seagreen_free_rt()`, ye shall walk the plank.
 * If ye call `sync_block_on(fn())`, ye shall be prepared for the arguments passed to `fn()` to be accessed on a different thread or ye shall walk the plank (if ye get caught).
 * If ye use SeaGreen expectin' it to not call `malloc()` or `free()`, ye shall walk the plank.
+* If ye use SeaGreen's internal functions (prefixed with `__cgn_`), ye shall walk the plank.
 
 If ye don' heed these warnin's, ye may be squacked at by Seggie the SegFault parrot or worse, cause undefined behavior on yon sea.
 

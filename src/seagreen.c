@@ -8,7 +8,7 @@ _Thread_local __CGNThread *__cgn_curr_thread = 0;
 
 static __CGNThreadBlock *add_block(void) {
     __CGNThreadBlock *block = malloc(sizeof(__CGNThreadBlock));
-    __CGN_CHECK_MALLOC(block);
+    __cgn_check_malloc(block);
 
     block->next = 0;
     block->prev = 0;
@@ -76,7 +76,7 @@ void cgn_init_rt(void) {
     }
 
     __CGNThreadBlock *block = malloc(sizeof(__CGNThreadBlock));
-    __CGN_CHECK_MALLOC(block);
+    __cgn_check_malloc(block);
 
     block->next = 0;
     block->prev = 0;
