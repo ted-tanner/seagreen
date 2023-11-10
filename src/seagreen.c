@@ -5,7 +5,6 @@
 
 __CGNThreadList __cgn_threadl = {0};
 _Thread_local __CGNThread *__cgn_curr_thread = 0;
-_Thread_local _Bool reschedule = 0;
 
 static __CGNThreadBlock *add_block(void) {
     __CGNThreadBlock *block = malloc(sizeof(__CGNThreadBlock));
@@ -92,24 +91,19 @@ void cgn_init_rt(void) {
     __cgn_current_thread = thread;
 }
 
-uint64_t __cgn_scheduler(volatile _Bool *reschedule) {
-    getctx(&__cgn_curr_thread->ctx);
+uint64_t __cgn_scheduler(void) {
+    for (__CGNThreadBlock *block = __cgn_threadl.head; block; block = block->next) {
+	if (!block->unused_threads) {
+	    continue;
+	}
 
-    if (*reschedule) {
-	*reschedule = 0;
-	for (__CGNThreadBlock *block = __cgn_threadl.head; block; block = block->next) {
-	    if (!block->unused_threads) {
-		continue;
-	    }
-
-	    for (size_t pos = 0; ((block->unused_threads << pos) & (1ULL << 63)); ++pos) {
-		// NOTE: When multicore is implemented, need a lock here and recheck that the thread
-		//       is still used
-		__CGNThread *thread = block->threads + pos;
-		if (thread->state == __CGN_THREAD_STATE_READY) {
-		    thread->state = __CGN_THREAD_STATE_RUNNING;
-		    ctxswitch(&curr_ctx, &thread->ctx);
-		}
+	for (size_t pos = 0; ((block->unused_threads << pos) & (1ULL << 63)); ++pos) {
+	    // NOTE: When multicore is implemented, need a lock here and recheck that the thread
+	    //       is still used
+	    __CGNThread *thread = block->threads + pos;
+	    if (thread->state == __CGN_THREAD_STATE_READY) {
+		thread->state = __CGN_THREAD_STATE_RUNNING;
+		ctxswitch(&__cgn_curr_thread->ctx, &thread->ctx);
 	    }
 	}
     }

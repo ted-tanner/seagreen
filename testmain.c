@@ -9,21 +9,21 @@ async(int) foo(int a, int b) {
 	asm volatile("nop");
     }
 
-    cgn_yield();
+    seagreen_yield();
     printf("foo(%d, %d)\n", a, b);
 
     for (int i = 0; i < INT32_MAX; ++i) {
 	asm volatile("nop");
     }
 
-    cgn_yield();
+    seagreen_yield();
     printf("foo(%d, %d)\n", a, b);
 
     for (int i = 0; i < INT32_MAX; ++i) {
 	asm volatile("nop");
     }
 
-    cgn_yield();
+    seagreen_yield();
     printf("foo(%d, %d)\n", a, b);
 
     async_return(a + b);
@@ -31,7 +31,7 @@ async(int) foo(int a, int b) {
 
 int main(void) {
     printf("Initializing runtime...\n");
-    cgn_init_rt();
+    seagreen_init_rt();
 
     printf("Starting foo(1, 2)...\n");
     CGNThreadHandle h1 = async_run(foo(1, 2));

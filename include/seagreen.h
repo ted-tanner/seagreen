@@ -18,7 +18,7 @@ enum __CGNThreadState {
 
 typedef struct __CGNThread_ {
     __CGNThreadState state;
-    __CGNThreadCtx saved_registers;
+    __CGNThreadCtx ctx;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -40,7 +40,8 @@ typedef struct __CGNThreadList_ {
 
 #define __CGN_CHECK_MALLOC(ptr) if (!ptr) abort();
 
-void cgn_init_rt(void);
+void seagreen_init_rt(void);
+// TODO: seagreen_free_rt()
 
 typedef struct __cgn_async_value_ {
     uintmax_t value;
@@ -200,7 +201,7 @@ void __cgn_scheduler(void) __attribute__((noreturn));
 	size_t: __cgn_async_size_t					\
 	)
 
-#define cgn_yield() __cgn_scheduler()
+#define async_yield() __cgn_scheduler()
 
 // TODO: Once multithreading is supported, create a way to pool blocking threads
 // that can pass off waiting to another thread, then return to the scheduler

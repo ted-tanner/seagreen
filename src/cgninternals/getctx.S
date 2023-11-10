@@ -70,4 +70,8 @@ getctx:
 
         ret
 
+#else
+
+#error "seagreenlib does not support this architecture"
+
 #endif
