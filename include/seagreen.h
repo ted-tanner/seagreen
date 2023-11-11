@@ -9,6 +9,8 @@
 
 #include "cgninternals/coroutine.h"
 
+#define __cgn_check_malloc(ptr) if (!ptr) abort();
+
 enum __CGNThreadState {
     __CGN_THREAD_STATE_READY,
     __CGN_THREAD_STATE_RUNNING,
@@ -19,6 +21,8 @@ enum __CGNThreadState {
 typedef struct __CGNThread_ {
     __CGNThreadState state;
     __CGNThreadCtx ctx;
+
+    uint64_t data;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -38,66 +42,80 @@ typedef struct __CGNThreadList_ {
     size_t thread_count;
 } __CGNThreadList;
 
-#define __cgn_check_malloc(ptr) if (!ptr) abort();
+typedef signed char __cgn_signedchar;
+typedef unsigned char __cgn_unsignedchar;
+typedef unsigned short __cgn_unsignedshort;
+typedef unsigned int __cgn_unsignedint;
+typedef unsigned long __cgn_unsignedlong;
+typedef long long __cgn_longlong;
+typedef unsigned long long __cgn_unsignedlonglong;
+typedef long double __cgn_longdouble;
+typedef void* __cgn_voidptr;
+
+#define __cgn_define_handle_type(T)					\
+    typedef struct _CGNThreadHandle_##T {				\
+	size_t pos;							\
+    } CGNThreadHandle_##T
+
+__cgn_define_handle_type(void);
+__cgn_define_handle_type(char);
+__cgn_define_handle_type(__cgn_signedchar);
+__cgn_define_handle_type(__cgn_unsignedchar);
+__cgn_define_handle_type(short);
+__cgn_define_handle_type(__cgn_unsignedshort);
+__cgn_define_handle_type(int);
+__cgn_define_handle_type(__cgn_unsignedint);
+__cgn_define_handle_type(long);
+__cgn_define_handle_type(__cgn_unsignedlong);
+__cgn_define_handle_type(__cgn_longlong);
+__cgn_define_handle_type(__cgn_unsignedlonglong);
+__cgn_define_handle_type(float);
+__cgn_define_handle_type(double);
+__cgn_define_handle_type(__cgn_longdouble);
+__cgn_define_handle_type(__cgn_voidptr);
+
+#define __cgn_declare_cgn_scheduler(T) T __cgn_scheduler_##T(void);
+
+// TODO: Need to make this actaully return a value
+// TODO: Need to make safe for multiple threads
+#define __cgn_define_cgn_scheduler(T)                                          \
+  T __cgn_scheduler_##T(void) {                                                \
+    for (__CGNThreadBlock *block = __cgn_threadl.head; block;                  \
+         block = block->next) {                                                \
+      if (!block->unused_threads) {                                            \
+        continue;                                                              \
+      }                                                                        \
+                                                                               \
+      for (size_t pos = 0; ((block->unused_threads << pos) & (1ULL << 63));    \
+           ++pos) {                                                            \
+        __CGNThread *thread = block->threads + pos;                            \
+        if (thread->state == __CGN_THREAD_STATE_READY) {                       \
+          thread->state = __CGN_THREAD_STATE_RUNNING;                          \
+          ctxswitch(&__cgn_curr_thread->ctx, &thread->ctx);                    \
+        }                                                                      \
+      }                                                                        \
+    }                                                                          \
+  }
+
+__cgn_declare_cgn_scheduler(void);
+__cgn_declare_cgn_scheduler(char);
+__cgn_declare_cgn_scheduler(__cgn_signedchar);
+__cgn_declare_cgn_scheduler(__cgn_unsignedchar);
+__cgn_declare_cgn_scheduler(short);
+__cgn_declare_cgn_scheduler(__cgn_unsignedshort);
+__cgn_declare_cgn_scheduler(int);
+__cgn_declare_cgn_scheduler(__cgn_unsignedint);
+__cgn_declare_cgn_scheduler(long);
+__cgn_declare_cgn_scheduler(__cgn_unsignedlong);
+__cgn_declare_cgn_scheduler(__cgn_longlong);
+__cgn_declare_cgn_scheduler(__cgn_unsignedlonglong);
+__cgn_declare_cgn_scheduler(float);
+__cgn_declare_cgn_scheduler(double);
+__cgn_declare_cgn_scheduler(__cgn_longdouble);
+__cgn_declare_cgn_scheduler(__cgn_voidptr);
 
 void seagreen_init_rt(void);
-// TODO: seagreen_free_rt()
-
-typedef struct __cgn_async_value_ {
-    uintmax_t value;
-} __cgn_async_value;
-
-typedef __cgn_async_value __cgn_async_void;
-
-typedef __cgn_async_value __cgn_async_char;
-typedef __cgn_async_value __cgn_async_unsigned_char;
-typedef __cgn_async_value __cgn_async_short;
-typedef __cgn_async_value __cgn_async_unsigned_short;
-typedef __cgn_async_value __cgn_async_int;
-typedef __cgn_async_value __cgn_async_unsigned_int;
-typedef __cgn_async_value __cgn_async_long;
-typedef __cgn_async_value __cgn_async_unsigned_long;
-typedef __cgn_async_value __cgn_async_long_long;
-typedef __cgn_async_value __cgn_async_unsigned_long_long;
-typedef __cgn_async_value __cgn_async_float;
-typedef __cgn_async_value __cgn_async_double;
-typedef __cgn_async_value __cgn_async_long_double;
-
-typedef __cgn_async_value __cgn_async_ptr;
-
-typedef __cgn_async_value __cgn_async_int8_t;
-typedef __cgn_async_value __cgn_async_uint8_t;
-typedef __cgn_async_value __cgn_async_int16_t;
-typedef __cgn_async_value __cgn_async_uint16_t;
-typedef __cgn_async_value __cgn_async_int32_t;
-typedef __cgn_async_value __cgn_async_uint32_t;
-typedef __cgn_async_value __cgn_async_int64_t;
-typedef __cgn_async_value __cgn_async_uint64_t;
-
-typedef __cgn_async_value __cgn_async_int_least8_t;
-typedef __cgn_async_value __cgn_async_uint_least8_t;
-typedef __cgn_async_value __cgn_async_int_least16_t;
-typedef __cgn_async_value __cgn_async_uint_least16_t;
-typedef __cgn_async_value __cgn_async_int_least32_t;
-typedef __cgn_async_value __cgn_async_uint_least32_t;
-typedef __cgn_async_value __cgn_async_int_least64_t;
-typedef __cgn_async_value __cgn_async_uint_least64_t;
-
-typedef __cgn_async_value __cgn_async_int_fast8_t;
-typedef __cgn_async_value __cgn_async_uint_fast8_t;
-typedef __cgn_async_value __cgn_async_int_fast16_t;
-typedef __cgn_async_value __cgn_async_uint_fast16_t;
-typedef __cgn_async_value __cgn_async_int_fast32_t;
-typedef __cgn_async_value __cgn_async_uint_fast32_t;
-typedef __cgn_async_value __cgn_async_int_fast64_t;
-typedef __cgn_async_value __cgn_async_uint_fast64_t;
-
-typedef __cgn_async_value __cgn_async_intmax_t;
-typedef __cgn_async_value __cgn_async_uintmax_t;
-
-typedef __cgn_async_value __cgn_async_size_t;
-
-void __cgn_scheduler(void) __attribute__((noreturn));
+void seagreen_free_rt(void);
 
 // Need as_async(f) to push work to blocking thread pool and check if
 // function is done (then call __cgn_scheduler() if not done) each

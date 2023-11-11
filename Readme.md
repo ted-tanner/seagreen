@@ -29,6 +29,7 @@ If ye don' heed these warnin's, ye may be squacked at by Seggie the SegFault par
 
 ## TODO
 
+* To get the proper return values, return an opaque green thread handle. There should be a different handle type per concrete type. May need to add extra bytes to the handle to differentiate types so they aren't "compatible." The thread structure will hold 8 bytes for the return value. Use a macro with `_Generic` to generate different `__cgn_scheduler_##type()` functions that return different types. On `await()`, call the appropriate scheduler function for the given return type.
 * All __cgn_threadl accesses should be made safe for multithreading
 * Flag that allows cross-OS-thread scheduling for high performance, or disallows cross-OS-thread scheduling for ease of programming (no need to synchronize variables across threads). Default to no cross-OS-thread scheduling (will this still allow blocking threads)?
 * Blocking threads
