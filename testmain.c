@@ -40,10 +40,10 @@ int main(void) {
     seagreen_init_rt();
 
     printf("Starting foo(1, 2)...\n");
-    CGNThreadHandle___cgn_unsignedlonglong h1 = async_run(foo(1, 2));
+    CGNThreadHandle_unsignedlonglong h1 = async_run(foo(1, 2));
 
     printf("Starting foo(3, 4)...\n");
-    CGNThreadHandle___cgn_unsignedlonglong h2 = async_run(foo(3, 4));
+    CGNThreadHandle_unsignedlonglong h2 = async_run(foo(3, 4));
 
     printf("Awaiting...\n");
 
