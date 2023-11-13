@@ -23,7 +23,7 @@ typedef void *__cgn_voidptr;
 
 #define __cgn_define_handle_type(T)		\
     typedef struct _CGNThreadHandle_##T {	\
-	uint64_t pos;				\
+	uint64_t id;				\
     } CGNThreadHandle_##T
 
 __cgn_define_handle_type(void);
@@ -54,7 +54,7 @@ typedef struct __CGNThread_ {
     __CGNThreadState state;
     __CGNThreadCtx ctx;
 
-    uint64_t awaited_thread_pos;
+    uint64_t awaited_thread_id;
     uint64_t return_val;
 
     _Bool yield_toggle;
@@ -82,9 +82,9 @@ void seagreen_free_rt(void);
 
 __attribute__((noreturn)) void __cgn_scheduler(void);
 
-__CGNThreadBlock *__cgn_get_block(uint64_t pos);
-__CGNThread *__cgn_get_thread(uint64_t pos);
-__CGNThread *__cgn_add_thread(uint64_t *pos);
+__CGNThreadBlock *__cgn_get_block(uint64_t id);
+__CGNThread *__cgn_get_thread(uint64_t id);
+__CGNThread *__cgn_add_thread(uint64_t *id);
 void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos);
 
 __CGNThread *__cgn_get_curr_thread(void);
@@ -107,27 +107,27 @@ __CGNThread *__cgn_get_curr_thread(void);
 #define await(handle)							\
     _Generic((handle),							\
 	     CGNThreadHandle_void: ({					\
-		     __CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		     t->awaited_thread_pos = (handle).pos;		\
+		     __CGNThread *t = __cgn_add_thread(&handle.id);	\
+		     t->awaited_thread_id = (handle).id;		\
 		     t->state = __CGN_THREAD_STATE_WAITING;		\
 									\
 		     async_yield();					\
 									\
-		     uint64_t pos = (handle).pos % 64;			\
-		     __CGNThreadBlock *block = __cgn_get_block((handle).pos); \
+		     uint64_t pos = (handle).id % 64;			\
+		     __CGNThreadBlock *block = __cgn_get_block((handle).id); \
 		     __cgn_remove_thread(block, pos);			\
 									\
 		     (void)0;						\
 		 }),							\
 	     default: ({						\
-		     __CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		     t->awaited_thread_pos = (handle).pos;		\
+		     __CGNThread *t = __cgn_add_thread(&handle.id);	\
+		     t->awaited_thread_id = (handle).id;		\
 		     t->state = __CGN_THREAD_STATE_WAITING;		\
 									\
 		     async_yield();					\
 									\
-		     uint64_t pos = (handle).pos % 64;			\
-		     __CGNThreadBlock *block = __cgn_get_block((handle).pos); \
+		     uint64_t pos = (handle).id % 64;			\
+		     __CGNThreadBlock *block = __cgn_get_block((handle).id); \
 		     uint64_t return_val = block->threads[pos].return_val; \
 		     __cgn_remove_thread(block, pos);			\
 									\
@@ -139,7 +139,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	(V),								\
 	char: ({							\
 		CGNThreadHandle_char handle;                            \
-		__CGNThread *t = __cgn_add_thread(&handle.pos);         \
+		__CGNThread *t = __cgn_add_thread(&handle.id);         \
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -157,7 +157,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	signed char: ({							\
 		CGNThreadHandle___cgn_signedchar handle;		\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -175,7 +175,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	unsigned char: ({						\
 		CGNThreadHandle___cgn_unsignedchar handle;		\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -193,7 +193,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	short: ({							\
 		CGNThreadHandle_short handle;				\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -211,7 +211,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	unsigned short: ({						\
 		CGNThreadHandle___cgn_unsignedshort handle;		\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -229,7 +229,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	int: ({								\
 		CGNThreadHandle_int handle;                             \
-		__CGNThread *t = __cgn_add_thread(&handle.pos);         \
+		__CGNThread *t = __cgn_add_thread(&handle.id);         \
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -247,7 +247,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	unsigned int: ({						\
 		CGNThreadHandle___cgn_unsignedint handle;		\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -265,7 +265,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	long: ({							\
 		CGNThreadHandle_long handle;				\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -283,7 +283,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	unsigned long: ({						\
 		CGNThreadHandle___cgn_unsignedlong handle;		\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -301,7 +301,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	long long: ({							\
 		CGNThreadHandle___cgn_longlong handle;			\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -319,7 +319,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	unsigned long long: ({						\
 		CGNThreadHandle___cgn_unsignedlonglong handle;		\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -337,7 +337,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	float: ({							\
 		CGNThreadHandle_float handle;				\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -355,7 +355,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	double: ({							\
 		CGNThreadHandle_double handle;				\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -373,7 +373,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	long double: ({							\
 		CGNThreadHandle___cgn_longdouble handle;		\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -391,7 +391,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	void *: ({							\
 		CGNThreadHandle___cgn_voidptr handle;			\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -409,7 +409,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	default: ({							\
 		CGNThreadHandle_void handle;				\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -424,10 +424,6 @@ __CGNThread *__cgn_get_curr_thread(void);
 									\
 		handle;							\
 	    }))
-
-// TODO: Once multithreading is supported, create a way to pool blocking threads
-// that can pass off waiting to another thread, then return to the scheduler
-// (blocking thread will mark the thread as completed)
 
 #ifdef CGN_TEST
 #include "cgntest/test.h"
