@@ -36,8 +36,7 @@ int main(void) {
     seagreen_init_rt();
 
     printf("Starting foo(1, 2)...\n");
-    CGNThreadHandle_int h1 = ({ CGNThreadHandle_int handle; __CGNThread *t =__cgn_add_thread(&handle.pos); handle; });
-    // CGNThreadHandle_int h1 = async_run(foo(1, 2));    // TODO: async_run() should yield;
+    CGNThreadHandle_int h1 = async_run(foo(1, 2));
 
     printf("Starting foo(3, 4)...\n");
     CGNThreadHandle_int h2 = async_run(foo(3, 4));
@@ -45,7 +44,6 @@ int main(void) {
     printf("Awaiting...\n");
 
     int foo1_res = await(h1);
-    // TODO: await() should yield;
     printf("foo(1, 2) returned %d\n", foo1_res);
 
     int foo2_res = await(h2);
