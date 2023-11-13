@@ -124,82 +124,98 @@ __CGNThread *__cgn_get_curr_thread(void);
 	(V),							\
 	char: ({						\
 		CGNThreadHandle_char handle;			\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	signed char: ({						\
 		CGNThreadHandle___cgn_signedchar handle;	\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	unsigned char: ({					\
 		CGNThreadHandle___cgn_unsignedchar handle;	\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	short: ({						\
 		CGNThreadHandle_short handle;			\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	unsigned short: ({					\
 		CGNThreadHandle___cgn_unsignedshort handle;	\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	int: ({							\
 		CGNThreadHandle_int handle;			\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	unsigned int: ({					\
 		CGNThreadHandle___cgn_unsignedint handle;	\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	long: ({						\
 		CGNThreadHandle_long handle;			\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	unsigned long: ({					\
 		CGNThreadHandle___cgn_unsignedlong handle;	\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	long long: ({						\
 		CGNThreadHandle___cgn_longlong handle;		\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	unsigned long long: ({					\
 		CGNThreadHandle___cgn_unsignedlonglong handle;	\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	float: ({						\
 		CGNThreadHandle_float handle;			\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	double: ({						\
 		CGNThreadHandle_double handle;			\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	long double: ({						\
 		CGNThreadHandle___cgn_longdouble handle;	\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	void *: ({						\
 		CGNThreadHandle___cgn_voidptr handle;		\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    }),							\
 	default: ({						\
 		CGNThreadHandle_void handle;			\
-		__CGNThread *t =__cgn_add_thread(&handle.pos);	\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		__cgn_getctx(&t->ctx);				\
 		handle;						\
 	    })							\
 	)

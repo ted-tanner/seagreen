@@ -95,7 +95,7 @@ __attribute__((noreturn)) void __cgn_scheduler(void) {
 			running_thread->state = __CGN_THREAD_STATE_READY;
 			staged_thread->state = __CGN_THREAD_STATE_RUNNING;
 
-                        uint64_t retval = ctxswitch(&running_thread->ctx, &staged_thread->ctx);
+                        uint64_t retval = __cgn_ctxswitch(&running_thread->ctx, &staged_thread->ctx);
 
 			// TODO: Test this actually works (meaning it gets reached at the right time.
 			__cgn_curr_thread->return_val = (uint64_t) retval;
