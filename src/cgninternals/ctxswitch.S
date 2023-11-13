@@ -1,8 +1,17 @@
-.globl ctxswitch
+// TODO: Do floating point registers need to be saved?
+
+#if defined(__WIN64__) || defined(__APPLE__)
+#define __CGN_CTXSWITCH_NAME _ctxswitch
+#elif
+#define __CGN_CTXSWITCH_NAME ctxswitch
+#endif
+
+.globl __CGN_CTXSWITCH_NAME
 
 #if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
 
-ctxswitch:
+.balign 4
+__CGN_CTXSWITCH_NAME:
         movq %rsp, (%rdi)
         movq %rbp, 8(%rdi)
 
@@ -23,9 +32,10 @@ ctxswitch:
 
         ret
 
-#elif defined(__x86_64__) && defined(_WIN64)
+#elif defined(__x86_64__) && defined(__WIN64__)
 
-ctxswitch:
+.balign 4
+__CGN_CTXSWITCH_NAME:
         movq %rsp, (%rcx)
         movq %rbp, 8(%rcx)
 
@@ -50,9 +60,11 @@ ctxswitch:
         
 #elif defined(__aarch64__)
 
-ctxswitch:
+.balign 4
+__CGN_CTXSWITCH_NAME:
         str lr, [x0, 0]
-        str sp, [x0, 8] 
+        mov x9, sp
+        str x9, [x0, 8] 
 
         str x19, [x0, 16]
         str x20, [x0, 24]
@@ -67,25 +79,27 @@ ctxswitch:
         str x29, [x0, 96]
 
         ldr lr, [x1, 0]
-        ldr sp, [x1, 8]
+        ldr x9, [x1, 8]
+        mov sp, x9
 
-        ldr x19 [x1, 16]
-        ldr x20 [x1, 24]
-        ldr x21 [x1, 32]
-        ldr x22 [x1, 40]
-        ldr x23 [x1, 48]
-        ldr x24 [x1, 56]
-        ldr x25 [x1, 64]
-        ldr x26 [x1, 72]
-        ldr x27 [x1, 80]
-        ldr x28 [x1, 88]
-        ldr x29 [x1, 96]
+        ldr x19, [x1, 16]
+        ldr x20, [x1, 24]
+        ldr x21, [x1, 32]
+        ldr x22, [x1, 40]
+        ldr x23, [x1, 48]
+        ldr x24, [x1, 56]
+        ldr x25, [x1, 64]
+        ldr x26, [x1, 72]
+        ldr x27, [x1, 80]
+        ldr x28, [x1, 88]
+        ldr x29, [x1, 96]
 
         ret
 
 #elif defined(__riscv__)
 
-ctxswitch:
+.balign 4
+__CGN_CTXSWITCH_NAME:
         sd ra, 0(a0)
         sd sp, 8(a0)
 

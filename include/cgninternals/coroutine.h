@@ -46,7 +46,7 @@ typedef struct __CGNThreadCtx_ {
     uint64_t x27;
     uint64_t x28;
     uint64_t x29;
-} __CGNThxeadCtx;
+} __CGNThreadCtx;
 
 #elif defined(__riscv__)
 
@@ -74,7 +74,7 @@ typedef struct __CGNThreadCtx_ {
 
 #endif
 
-extern void ctxswitch(__CGNThreadCtx *oldctx, __CGNThreadCtx *newctx);
+extern uint64_t ctxswitch(__CGNThreadCtx *oldctx, __CGNThreadCtx *newctx);
 
 #define CGN_COROUTINE_H
 #endif

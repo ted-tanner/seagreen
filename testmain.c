@@ -3,30 +3,32 @@
 
 #include "seagreen.h"
 
-async(int) foo(int a, int b) {
-    printf("foo(%d, %d)\n", a, b);
+async int foo(int a, int b) {
+    printf("1 foo(%d, %d)\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
-	asm volatile("nop");
+	__asm__ volatile("nop");
     }
 
-    seagreen_yield();
-    printf("foo(%d, %d)\n", a, b);
+    async_yield();
 
+    printf("2 foo(%d, %d)\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
-	asm volatile("nop");
+	__asm__ volatile("nop");
     }
 
-    seagreen_yield();
-    printf("foo(%d, %d)\n", a, b);
+    async_yield();
 
+    printf("3 foo(%d, %d)\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
-	asm volatile("nop");
+	__asm__ volatile("nop");
     }
 
-    seagreen_yield();
-    printf("foo(%d, %d)\n", a, b);
+    async_yield();
 
-    async_return(a + b);
+    printf("4 foo(%d, %d)\n", a, b);
+
+    // return async_retval(a + b);
+    return a + b;
 }
 
 int main(void) {
@@ -34,11 +36,11 @@ int main(void) {
     seagreen_init_rt();
 
     printf("Starting foo(1, 2)...\n");
-    CGNThreadHandle h1 = async_run(foo(1, 2));
-    // TODO: async_run() should yield;
+    CGNThreadHandle_int h1 = ({ CGNThreadHandle_int handle; __CGNThread *t =__cgn_add_thread(&handle.pos); handle; });
+    // CGNThreadHandle_int h1 = async_run(foo(1, 2));    // TODO: async_run() should yield;
 
     printf("Starting foo(3, 4)...\n");
-    CGNThreadHandle h2 = async_run(foo(3, 4));
+    CGNThreadHandle_int h2 = async_run(foo(3, 4));
 
     printf("Awaiting...\n");
 
@@ -51,3 +53,9 @@ int main(void) {
 
     return 0;
 }
+
+
+// TODO: Test with ints
+// TODO: Test with floats
+// TODO: Test with void// 
+// TODO: Test on x86
