@@ -9,6 +9,10 @@
 
 #include "cgninternals/coroutine.h"
 
+#ifdef CGN_DEBUG
+void print_threads(void);
+#endif
+
 #define __cgn_check_malloc(ptr) if (!ptr) abort();
 
 typedef signed char __cgn_signedchar;
@@ -93,7 +97,6 @@ __CGNThread *__cgn_get_curr_thread(void);
 
 #define async_yield() {					\
 	__CGNThread *t = __cgn_get_curr_thread();	\
-	t->state = __CGN_THREAD_STATE_READY;		\
 	__cgn_savectx(&t->ctx);				\
 							\
 	_Bool temp_yield_toggle = t->yield_toggle;	\
@@ -107,7 +110,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 #define await(handle)							\
     _Generic((handle),							\
 	     CGNThreadHandle_void: ({					\
-		     __CGNThread *t = __cgn_add_thread(&handle.id);	\
+		     __CGNThread *t = __cgn_get_curr_thread();		\
 		     t->awaited_thread_id = (handle).id;		\
 		     t->state = __CGN_THREAD_STATE_WAITING;		\
 									\
@@ -120,7 +123,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		     (void)0;						\
 		 }),							\
 	     default: ({						\
-		     __CGNThread *t = __cgn_add_thread(&handle.id);	\
+		     __CGNThread *t = __cgn_get_curr_thread();		\
 		     t->awaited_thread_id = (handle).id;		\
 		     t->state = __CGN_THREAD_STATE_WAITING;		\
 									\
@@ -139,7 +142,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	(V),								\
 	char: ({							\
 		CGNThreadHandle_char handle;                            \
-		__CGNThread *t = __cgn_add_thread(&handle.id);         \
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
@@ -229,7 +232,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 	    }),                                                         \
 	int: ({								\
 		CGNThreadHandle_int handle;                             \
-		__CGNThread *t = __cgn_add_thread(&handle.id);         \
+		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\

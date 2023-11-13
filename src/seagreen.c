@@ -16,20 +16,20 @@ _Thread_local uint64_t __cgn_sched_thread_pos = 0;
 
 static char *state_to_name(__CGNThreadState state) {
     switch (state) {
-	case __CGN_THREAD_STATE_READY:
-	    return "ready";
-	case __CGN_THREAD_STATE_RUNNING:
-	    return "running";
-	case __CGN_THREAD_STATE_WAITING:
-	    return "waiting";
-	case __CGN_THREAD_STATE_DONE:
-	    return "done";
+    case __CGN_THREAD_STATE_READY:
+	return "ready";
+    case __CGN_THREAD_STATE_RUNNING:
+	return "running";
+    case __CGN_THREAD_STATE_WAITING:
+	return "waiting";
+    case __CGN_THREAD_STATE_DONE:
+	return "done";
     }
 
     return "!invalid!";
 }
 
-static void print_threads() {
+void print_threads(void) {
     uint64_t i = 0;
     printf("\n------------------------------------\n");
     for (__CGNThreadBlock *block = __cgn_threadl.head; block; block = block->next, ++i) {
@@ -92,9 +92,10 @@ void seagreen_init_rt(void) {
 
     uint64_t _id;
     __CGNThread *thread = __cgn_add_thread(&_id);
-    thread->state = __CGN_THREAD_STATE_RUNNING;
-    __cgn_curr_thread = thread;
 
+    thread->state = __CGN_THREAD_STATE_RUNNING;
+
+    __cgn_curr_thread = thread;
     __cgn_sched_block = block;
 }
 

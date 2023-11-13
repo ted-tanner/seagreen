@@ -29,6 +29,7 @@ If ye don' heed these warnin's, ye may be squacked at by Seggie the SegFault par
 
 ## TODO
 
+* Use stdint types in macros rather than int/long/short/etc
 * Multithreaded scheduler (in a separate header).
   - Linked list for threads that is synchronized using something similar to Linux's RCU.
 * Blocking thread pool for making synchronous functions async (sort of)
