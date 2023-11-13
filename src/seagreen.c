@@ -11,6 +11,49 @@ _Thread_local __CGNThreadBlock *__cgn_sched_block = 0;
 _Thread_local uint64_t __cgn_sched_block_pos = 0;
 _Thread_local uint64_t __cgn_sched_thread_pos = 0;
 
+
+#ifdef CGN_DEBUG
+
+static char *state_to_name(__CGNThreadState state) {
+    switch (state) {
+	case __CGN_THREAD_STATE_READY:
+	    return "ready";
+	case __CGN_THREAD_STATE_RUNNING:
+	    return "running";
+	case __CGN_THREAD_STATE_WAITING:
+	    return "waiting";
+	case __CGN_THREAD_STATE_DONE:
+	    return "done";
+    }
+
+    return "!invalid!";
+}
+
+static void print_threads() {
+    uint64_t i = 0;
+    printf("\n------------------------------------\n");
+    for (__CGNThreadBlock *block = __cgn_threadl.head; block; block = block->next, ++i) {
+	for (uint64_t pos = 0; pos < 64; ++pos) {
+	    _Bool is_thread_unused =
+		(block->unused_threads << pos) & (1ULL << 63);
+
+	    uint64_t comb_pos = i * 64 + pos;
+
+	    if (!is_thread_unused) {
+		__CGNThread *thread = &block->threads[pos];
+		printf("thread %llu:\n\tstate: %s\n\tawaiting: %llu\n\tptr: %p\n\n",
+		       comb_pos,
+		       state_to_name(thread->state),
+		       thread->awaited_thread_pos,
+		       thread);
+	    }
+	}
+    }
+    printf("------------------------------------\n\n");
+}
+
+#endif
+
 static __CGNThreadBlock *add_block(void) {
     __CGNThreadBlock *block = (__CGNThreadBlock *)malloc(sizeof(__CGNThreadBlock));
     __cgn_check_malloc(block);
@@ -101,7 +144,7 @@ __attribute__((noreturn)) void __cgn_scheduler(void) {
                         running_thread->state = __CGN_THREAD_STATE_READY;
                         staged_thread->state = __CGN_THREAD_STATE_RUNNING;
 
-                        __cgn_ctxswitch(&running_thread->ctx, &staged_thread->ctx);
+                        __cgn_loadctx(&staged_thread->ctx);
                     }
                 }
             }
@@ -156,6 +199,9 @@ __CGNThread *__cgn_add_thread(uint64_t *placement_pos) {
     // Mark thread as used
     block->unused_threads &= ~(1ULL << (63 - pos));
     block->threads[pos].state = __CGN_THREAD_STATE_READY;
+
+    block->threads[pos].yield_toggle = 1;
+    block->threads[pos].run_toggle = 0;
 
     ++__cgn_threadl.thread_count;
 

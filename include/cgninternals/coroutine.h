@@ -74,8 +74,8 @@ typedef struct __CGNThreadCtx_ {
 
 #endif
 
-extern void __cgn_ctxswitch(__CGNThreadCtx *oldctx, __CGNThreadCtx *newctx);
-extern void __cgn_getctx(__CGNThreadCtx *ctx);
+extern void __cgn_loadctx(__CGNThreadCtx *ctx);
+extern void __cgn_savectx(__CGNThreadCtx *ctx);
 
 #define CGN_COROUTINE_H
 #endif

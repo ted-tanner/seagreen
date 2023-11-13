@@ -1,17 +1,17 @@
 // TODO: Do floating point registers need to be saved?
 
 #if defined(__WIN64__) || defined(__APPLE__)
-#define __CGN_GETCTX_NAME ___cgn_getctx
+#define __CGN_SAVECTX_NAME ___cgn_savectx
 #elif
-#define __CGN_GETCTX_NAME __cgn_getctx
+#define __CGN_SAVECTX_NAME __cgn_savectx
 #endif
 
-.globl __CGN_GETCTX_NAME
+.globl __CGN_SAVECTX_NAME
 
 #if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
 
 .balign 4
-__CGN_GETCTX_NAME:
+__CGN_SAVECTX_NAME:
         movq %rsp, (%rdi)
         movq %rbp, 8(%rdi)
 
@@ -26,7 +26,7 @@ __CGN_GETCTX_NAME:
 #elif defined(__x86_64__) && defined(__WIN64__)
 
 .balign 4
-__CGN_GETCTX_NAME:
+__CGN_SAVECTX_NAME:
         movq %rsp, (%rcx)
         movq %rbp, 8(%rcx)
 
@@ -42,7 +42,7 @@ __CGN_GETCTX_NAME:
 #elif defined(__aarch64__)
 
 .balign 4
-__CGN_GETCTX_NAME:
+__CGN_SAVECTX_NAME:
         str lr, [x0, 0]
         mov x9, sp
         str x9, [x0, 8] 
@@ -64,7 +64,7 @@ __CGN_GETCTX_NAME:
 #elif defined(__riscv__)
 
 .balign 4
-__CGN_GETCTX_NAME:
+__CGN_SAVECTX_NAME:
         sd ra, 0(a0)
         sd sp, 8(a0)
 

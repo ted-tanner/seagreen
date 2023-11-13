@@ -56,6 +56,9 @@ typedef struct __CGNThread_ {
 
     uint64_t awaited_thread_pos;
     uint64_t return_val;
+
+    _Bool yield_toggle;
+    _Bool run_toggle;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -87,29 +90,47 @@ void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos);
 __CGNThread *__cgn_get_curr_thread(void);
 
 #define async __attribute__((noinline))
-#define async_yield()						\
-    __cgn_get_curr_thread()->state = __CGN_THREAD_STATE_READY;	\
-    __cgn_scheduler()
+
+#define async_yield() {					\
+	__CGNThread *t = __cgn_get_curr_thread();	\
+	t->state = __CGN_THREAD_STATE_READY;		\
+	__cgn_savectx(&t->ctx);				\
+							\
+	_Bool temp_yield_toggle = t->yield_toggle;	\
+	t->yield_toggle = !t->yield_toggle;		\
+							\
+	if (temp_yield_toggle) {			\
+	    __cgn_scheduler();				\
+	}						\
+    }
 
 #define await(handle)							\
     _Generic((handle),							\
 	     CGNThreadHandle_void: ({					\
-		     __cgn_get_curr_thread()->awaited_thread_pos = (handle).pos; \
-		     __cgn_get_curr_thread()->state = __CGN_THREAD_STATE_WAITING; \
+		     __CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		     t->awaited_thread_pos = (handle).pos;		\
+		     t->state = __CGN_THREAD_STATE_WAITING;		\
+									\
 		     async_yield();					\
+									\
 		     uint64_t pos = (handle).pos % 64;			\
 		     __CGNThreadBlock *block = __cgn_get_block((handle).pos); \
 		     __cgn_remove_thread(block, pos);			\
+									\
 		     (void)0;						\
 		 }),							\
 	     default: ({						\
-		     __cgn_get_curr_thread()->awaited_thread_pos = (handle).pos; \
-		     __cgn_get_curr_thread()->state = __CGN_THREAD_STATE_WAITING; \
+		     __CGNThread *t = __cgn_add_thread(&handle.pos);	\
+		     t->awaited_thread_pos = (handle).pos;		\
+		     t->state = __CGN_THREAD_STATE_WAITING;		\
+									\
 		     async_yield();					\
+									\
 		     uint64_t pos = (handle).pos % 64;			\
 		     __CGNThreadBlock *block = __cgn_get_block((handle).pos); \
 		     uint64_t return_val = block->threads[pos].return_val; \
 		     __cgn_remove_thread(block, pos);			\
+									\
 		     return_val;					\
 		 }))
 
@@ -119,259 +140,288 @@ __CGNThread *__cgn_get_curr_thread(void);
 	char: ({							\
 		CGNThreadHandle_char handle;                            \
 		__CGNThread *t = __cgn_add_thread(&handle.pos);         \
-		__cgn_getctx(&t->ctx);                                  \
-		static _Bool should_run_##__FILE__##__LINE__ = 0;       \
-		if (should_run_##__FILE__##__LINE__)  {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle)  {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
 		    __cgn_scheduler();                                  \
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;                \
-		}                                                       \
-		handle;                                                 \
+		}							\
+									\
+		handle;							\
 	    }),                                                         \
 	signed char: ({							\
 		CGNThreadHandle___cgn_signedchar handle;		\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	unsigned char: ({						\
 		CGNThreadHandle___cgn_unsignedchar handle;		\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	short: ({							\
 		CGNThreadHandle_short handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	unsigned short: ({						\
 		CGNThreadHandle___cgn_unsignedshort handle;		\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	int: ({								\
 		CGNThreadHandle_int handle;                             \
 		__CGNThread *t = __cgn_add_thread(&handle.pos);         \
-		__cgn_getctx(&t->ctx);                                  \
-		static _Bool should_run_##__FILE__##__LINE__ = 0;       \
-		if (should_run_##__FILE__##__LINE__)                    \
-		{                                                       \
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
 		    __cgn_scheduler();                                  \
-		}                                                       \
-		else                                                    \
-		{                                                       \
-		    should_run_##__FILE__##__LINE__ = 1;                \
-		}                                                       \
+		}							\
+									\
 		handle;                                                 \
 	    }),                                                         \
 	unsigned int: ({						\
 		CGNThreadHandle___cgn_unsignedint handle;		\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	long: ({							\
 		CGNThreadHandle_long handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	unsigned long: ({						\
 		CGNThreadHandle___cgn_unsignedlong handle;		\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	long long: ({							\
 		CGNThreadHandle___cgn_longlong handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	unsigned long long: ({						\
 		CGNThreadHandle___cgn_unsignedlonglong handle;		\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	float: ({							\
 		CGNThreadHandle_float handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	double: ({							\
 		CGNThreadHandle_double handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	long double: ({							\
 		CGNThreadHandle___cgn_longdouble handle;		\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	void *: ({							\
 		CGNThreadHandle___cgn_voidptr handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    uint64_t retval = (uint64_t) V;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }),                                                         \
 	default: ({							\
 		CGNThreadHandle_void handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
-		__cgn_getctx(&t->ctx);					\
-		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
-		if (should_run_##__FILE__##__LINE__) {			\
+		__cgn_savectx(&t->ctx);					\
+									\
+		_Bool temp_run_toggle = t->run_toggle;			\
+		t->run_toggle = !t->run_toggle;				\
+									\
+		if (temp_run_toggle) {					\
 		    V;							\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
-		} else {						\
-		    should_run_##__FILE__##__LINE__ = 1;		\
 		}							\
+									\
 		handle;							\
 	    }))
 
