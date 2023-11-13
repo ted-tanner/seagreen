@@ -19,7 +19,7 @@ typedef unsigned long __cgn_unsignedlong;
 typedef long long __cgn_longlong;
 typedef unsigned long long __cgn_unsignedlonglong;
 typedef long double __cgn_longdouble;
-typedef void* __cgn_voidptr;
+typedef void *__cgn_voidptr;
 
 #define __cgn_define_handle_type(T)		\
     typedef struct _CGNThreadHandle_##T {	\
@@ -87,138 +87,293 @@ void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos);
 __CGNThread *__cgn_get_curr_thread(void);
 
 #define async __attribute__((noinline))
-#define async_yield() __cgn_scheduler()
+#define async_yield()						\
+    __cgn_get_curr_thread()->state = __CGN_THREAD_STATE_READY;	\
+    __cgn_scheduler()
 
 #define await(handle)							\
     _Generic((handle),							\
 	     CGNThreadHandle_void: ({					\
-		     __cgn_get_curr_thread()->state = __CGN_THREAD_STATE_WAITING; \
 		     __cgn_get_curr_thread()->awaited_thread_pos = (handle).pos; \
+		     __cgn_get_curr_thread()->state = __CGN_THREAD_STATE_WAITING; \
 		     async_yield();					\
 		     uint64_t pos = (handle).pos % 64;			\
 		     __CGNThreadBlock *block = __cgn_get_block((handle).pos); \
 		     __cgn_remove_thread(block, pos);			\
-		     (void) 0;						\
+		     (void)0;						\
 		 }),							\
 	     default: ({						\
-		     __cgn_get_curr_thread()->state = __CGN_THREAD_STATE_WAITING; \
 		     __cgn_get_curr_thread()->awaited_thread_pos = (handle).pos; \
+		     __cgn_get_curr_thread()->state = __CGN_THREAD_STATE_WAITING; \
 		     async_yield();					\
 		     uint64_t pos = (handle).pos % 64;			\
 		     __CGNThreadBlock *block = __cgn_get_block((handle).pos); \
 		     uint64_t return_val = block->threads[pos].return_val; \
 		     __cgn_remove_thread(block, pos);			\
 		     return_val;					\
-		 })							\
-	)
+		 }))
 
-#define async_retval(V)						\
-    ({								\
-	__cgn_curr_thread->return_val = (uint64_t) (V);		\
-	__cgn_curr_thread->state = __CGN_THREAD_STATE_DONE;	\
-	(V);							\
-    })
-
-#define async_run(V)						\
-    _Generic(							\
-	(V),							\
-	char: ({						\
-		CGNThreadHandle_char handle;			\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	signed char: ({						\
-		CGNThreadHandle___cgn_signedchar handle;	\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	unsigned char: ({					\
-		CGNThreadHandle___cgn_unsignedchar handle;	\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	short: ({						\
-		CGNThreadHandle_short handle;			\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	unsigned short: ({					\
-		CGNThreadHandle___cgn_unsignedshort handle;	\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	int: ({							\
-		CGNThreadHandle_int handle;			\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	unsigned int: ({					\
-		CGNThreadHandle___cgn_unsignedint handle;	\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	long: ({						\
-		CGNThreadHandle_long handle;			\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	unsigned long: ({					\
-		CGNThreadHandle___cgn_unsignedlong handle;	\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	long long: ({						\
-		CGNThreadHandle___cgn_longlong handle;		\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	unsigned long long: ({					\
-		CGNThreadHandle___cgn_unsignedlonglong handle;	\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	float: ({						\
-		CGNThreadHandle_float handle;			\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	double: ({						\
-		CGNThreadHandle_double handle;			\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	long double: ({						\
-		CGNThreadHandle___cgn_longdouble handle;	\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	void *: ({						\
-		CGNThreadHandle___cgn_voidptr handle;		\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    }),							\
-	default: ({						\
-		CGNThreadHandle_void handle;			\
-		__CGNThread *t = __cgn_add_thread(&handle.pos);	\
-		__cgn_getctx(&t->ctx);				\
-		handle;						\
-	    })							\
-	)
+#define async_run(V)							\
+    _Generic(								\
+	(V),								\
+	char: ({							\
+		CGNThreadHandle_char handle;                            \
+		__CGNThread *t = __cgn_add_thread(&handle.pos);         \
+		__cgn_getctx(&t->ctx);                                  \
+		static _Bool should_run_##__FILE__##__LINE__ = 0;       \
+		if (should_run_##__FILE__##__LINE__)  {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
+		    __cgn_scheduler();                                  \
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;                \
+		}                                                       \
+		handle;                                                 \
+	    }),                                                         \
+	signed char: ({							\
+		CGNThreadHandle___cgn_signedchar handle;		\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	unsigned char: ({						\
+		CGNThreadHandle___cgn_unsignedchar handle;		\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	short: ({							\
+		CGNThreadHandle_short handle;				\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	unsigned short: ({						\
+		CGNThreadHandle___cgn_unsignedshort handle;		\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	int: ({								\
+		CGNThreadHandle_int handle;                             \
+		__CGNThread *t = __cgn_add_thread(&handle.pos);         \
+		__cgn_getctx(&t->ctx);                                  \
+		static _Bool should_run_##__FILE__##__LINE__ = 0;       \
+		if (should_run_##__FILE__##__LINE__)                    \
+		{                                                       \
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
+		    __cgn_scheduler();                                  \
+		}                                                       \
+		else                                                    \
+		{                                                       \
+		    should_run_##__FILE__##__LINE__ = 1;                \
+		}                                                       \
+		handle;                                                 \
+	    }),                                                         \
+	unsigned int: ({						\
+		CGNThreadHandle___cgn_unsignedint handle;		\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	long: ({							\
+		CGNThreadHandle_long handle;				\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	unsigned long: ({						\
+		CGNThreadHandle___cgn_unsignedlong handle;		\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	long long: ({							\
+		CGNThreadHandle___cgn_longlong handle;			\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	unsigned long long: ({						\
+		CGNThreadHandle___cgn_unsignedlonglong handle;		\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	float: ({							\
+		CGNThreadHandle_float handle;				\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	double: ({							\
+		CGNThreadHandle_double handle;				\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	long double: ({							\
+		CGNThreadHandle___cgn_longdouble handle;		\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	void *: ({							\
+		CGNThreadHandle___cgn_voidptr handle;			\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    uint64_t retval = (uint64_t) V;			\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->return_val = retval;			\
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }),                                                         \
+	default: ({							\
+		CGNThreadHandle_void handle;				\
+		__CGNThread *t = __cgn_add_thread(&handle.pos);		\
+		__cgn_getctx(&t->ctx);					\
+		static _Bool should_run_##__FILE__##__LINE__ = 0;	\
+		if (should_run_##__FILE__##__LINE__) {			\
+		    V;							\
+		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
+		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
+		    __cgn_scheduler();					\
+		} else {						\
+		    should_run_##__FILE__##__LINE__ = 1;		\
+		}							\
+		handle;							\
+	    }))
 
 // TODO: Once multithreading is supported, create a way to pool blocking threads
 // that can pass off waiting to another thread, then return to the scheduler

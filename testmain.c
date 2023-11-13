@@ -6,28 +6,27 @@
 async int foo(int a, int b) {
     printf("1 foo(%d, %d)\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
-	__asm__ volatile("nop");
+        __asm__ volatile("nop");
     }
 
     async_yield();
 
     printf("2 foo(%d, %d)\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
-	__asm__ volatile("nop");
+        __asm__ volatile("nop");
     }
 
     async_yield();
 
     printf("3 foo(%d, %d)\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
-	__asm__ volatile("nop");
+        __asm__ volatile("nop");
     }
 
     async_yield();
 
     printf("4 foo(%d, %d)\n", a, b);
 
-    // return async_retval(a + b);
     return a + b;
 }
 
@@ -52,8 +51,7 @@ int main(void) {
     return 0;
 }
 
-
 // TODO: Test with ints
 // TODO: Test with floats
-// TODO: Test with void// 
+// TODO: Test with void//
 // TODO: Test on x86

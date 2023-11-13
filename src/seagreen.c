@@ -12,7 +12,7 @@ _Thread_local uint64_t __cgn_sched_block_pos = 0;
 _Thread_local uint64_t __cgn_sched_thread_pos = 0;
 
 static __CGNThreadBlock *add_block(void) {
-    __CGNThreadBlock *block = (__CGNThreadBlock *) malloc(sizeof(__CGNThreadBlock));
+    __CGNThreadBlock *block = (__CGNThreadBlock *)malloc(sizeof(__CGNThreadBlock));
     __cgn_check_malloc(block);
 
     block->next = 0;
@@ -30,9 +30,9 @@ static __CGNThreadBlock *add_block(void) {
 
 void seagreen_init_rt(void) {
     if (__cgn_threadl.head) {
-	// No need to initialize if already initialized
-	// TODO: Perhaps this should return an error code
-	return;
+        // No need to initialize if already initialized
+        // TODO: Perhaps this should return an error code
+        return;
     }
 
     __CGNThreadBlock *block = malloc(sizeof(__CGNThreadBlock));
@@ -49,6 +49,7 @@ void seagreen_init_rt(void) {
 
     uint64_t _pos;
     __CGNThread *thread = __cgn_add_thread(&_pos);
+    thread->state = __CGN_THREAD_STATE_RUNNING;
     __cgn_curr_thread = thread;
 
     __cgn_sched_block = block;
@@ -58,9 +59,9 @@ void seagreen_free_rt(void) {
     __CGNThreadBlock *block = __cgn_threadl.head;
 
     while (block) {
-	__CGNThreadBlock *next = block->next;
-	free(block);
-	block = next;
+        __CGNThreadBlock *next = block->next;
+        free(block);
+        block = next;
     }
 
     __cgn_threadl.head = 0;
@@ -74,41 +75,42 @@ void seagreen_free_rt(void) {
 
 __attribute__((noreturn)) void __cgn_scheduler(void) {
     while (1) {
-	for (; __cgn_sched_block; __cgn_sched_block = __cgn_sched_block->next, ++__cgn_sched_block_pos) {
-	    if (__cgn_sched_block->unused_threads == UINT64_MAX) {
-		continue;
-	    }
+        for (; __cgn_sched_block; __cgn_sched_block = __cgn_sched_block->next, ++__cgn_sched_block_pos) {
+            if (__cgn_sched_block->unused_threads == UINT64_MAX) {
+                continue;
+            }
 
-	    for (; __cgn_sched_thread_pos < 64; ++__cgn_sched_thread_pos) {
-		_Bool is_thread_unused =
-		    (__cgn_sched_block->unused_threads << __cgn_sched_thread_pos) & (1ULL << 63);
+            for (; __cgn_sched_thread_pos < 64; ++__cgn_sched_thread_pos) {
+                _Bool is_thread_unused =
+                    (__cgn_sched_block->unused_threads << __cgn_sched_thread_pos) & (1ULL << 63);
 
                 if (!is_thread_unused) {
-		    __CGNThread *staged_thread = &__cgn_sched_block->threads[__cgn_sched_thread_pos];
-		    
-		    if ((staged_thread->state == __CGN_THREAD_STATE_READY) ||
-			(staged_thread->state == __CGN_THREAD_STATE_WAITING &&
-			 __cgn_get_thread(staged_thread->awaited_thread_pos)->state == __CGN_THREAD_STATE_DONE)) {
-			__CGNThread *running_thread = __cgn_curr_thread;
-			__cgn_curr_thread = staged_thread;
+                    __CGNThread *staged_thread = &__cgn_sched_block->threads[__cgn_sched_thread_pos];
 
-			running_thread->state = __CGN_THREAD_STATE_READY;
-			staged_thread->state = __CGN_THREAD_STATE_RUNNING;
+                    if (staged_thread == __cgn_curr_thread) {
+                        continue;
+                    }
 
-                        uint64_t retval = __cgn_ctxswitch(&running_thread->ctx, &staged_thread->ctx);
+                    if ((staged_thread->state == __CGN_THREAD_STATE_READY) ||
+                        (staged_thread->state == __CGN_THREAD_STATE_WAITING &&
+                         __cgn_get_thread(staged_thread->awaited_thread_pos)->state == __CGN_THREAD_STATE_DONE))
+                    {
+                        __CGNThread *running_thread = __cgn_curr_thread;
+                        __cgn_curr_thread = staged_thread;
 
-			// TODO: Test this actually works (meaning it gets reached at the right time.
-			__cgn_curr_thread->return_val = (uint64_t) retval;
-			staged_thread->state = __CGN_THREAD_STATE_DONE;
-		    }
-		}
-	    }
+                        running_thread->state = __CGN_THREAD_STATE_READY;
+                        staged_thread->state = __CGN_THREAD_STATE_RUNNING;
 
-	    __cgn_sched_thread_pos = 0;
-	}
+                        __cgn_ctxswitch(&running_thread->ctx, &staged_thread->ctx);
+                    }
+                }
+            }
 
-	__cgn_sched_block = __cgn_threadl.head;
-	__cgn_sched_block_pos = 0;
+            __cgn_sched_thread_pos = 0;
+        }
+
+        __cgn_sched_block = __cgn_threadl.head;
+        __cgn_sched_block_pos = 0;
     }
 }
 
@@ -117,11 +119,11 @@ __CGNThreadBlock *__cgn_get_block(uint64_t pos) {
 
     uint64_t block_pos = pos / 64;
     if (block_pos > __cgn_threadl.block_count / 2) {
-	block = __cgn_threadl.tail;
-	for (uint64_t i = __cgn_threadl.block_count - 1; i > block_pos; --i, block = block->prev);
+        block = __cgn_threadl.tail;
+        for (uint64_t i = __cgn_threadl.block_count - 1; i > block_pos; --i, block = block->prev);
     } else {
-	block = __cgn_threadl.head;
-	for (uint64_t i = 0; i < block_pos; ++i, block = block->next);
+        block = __cgn_threadl.head;
+        for (uint64_t i = 0; i < block_pos; ++i, block = block->next);
     }
 
     return block;
@@ -137,13 +139,13 @@ __CGNThread *__cgn_add_thread(uint64_t *placement_pos) {
 
     uint64_t block_pos = __cgn_threadl.block_count - 1;
     while (!block->unused_threads) {
-	if (!block->prev) {
-	    block = add_block();
-	    break;
-	} else {
-	    block = block->prev;
-	    --block_pos;
-	}
+        if (!block->prev) {
+            block = add_block();
+            break;
+        } else {
+            block = block->prev;
+            --block_pos;
+        }
     }
 
     uint64_t pos = 0;
