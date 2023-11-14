@@ -9,28 +9,28 @@
 #ifdef USE_U64
 
 async uint64_t foo(uint64_t a, uint64_t b) {
-    printf("1 foo(%llu, %llu)\n", a, b);
+    printf("foo(%llu, %llu) - 1\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
         __asm__ volatile("nop");
     }
 
     async_yield();
 
-    printf("2 foo(%llu, %llu)\n", a, b);
+    printf("foo(%llu, %llu) - 2\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
         __asm__ volatile("nop");
     }
 
     async_yield();
 
-    printf("3 foo(%llu, %llu)\n", a, b);
+    printf("foo(%llu, %llu) - 3\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
         __asm__ volatile("nop");
     }
 
     async_yield();
 
-    printf("4 foo(%llu, %llu)\n", a, b);
+    printf("foo(%llu, %llu) - 4\n", a, b);
 
     return a + b;
 }
@@ -59,28 +59,28 @@ int main(void) {
 #else
 
 async int foo(int a, int b) {
-    printf("1 foo(%d, %d)\n", a, b);
+    printf("foo(%d, %d) - 1\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
         __asm__ volatile("nop");
     }
 
     async_yield();
 
-    printf("2 foo(%d, %d)\n", a, b);
+    printf("foo(%d, %d) - 2\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
         __asm__ volatile("nop");
     }
 
     async_yield();
 
-    printf("3 foo(%d, %d)\n", a, b);
+    printf("foo(%d, %d) - 3\n", a, b);
     for (int i = 0; i < INT32_MAX; ++i) {
         __asm__ volatile("nop");
     }
 
     async_yield();
 
-    printf("4 foo(%d, %d)\n", a, b);
+    printf("foo(%d, %d) - 4\n", a, b);
 
     return a + b;
 }
@@ -112,6 +112,6 @@ int main(void) {
 // TODO: Test with floats
 // TODO: Test with void
 // TODO: Test on Linux
-// TODO: Test on RiscV
+// TODO: Test on Risc V
 // TODO: Test on x86 MacOS
 // TODO: Test on x86 Windows

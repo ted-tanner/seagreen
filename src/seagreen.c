@@ -24,9 +24,9 @@ static char *state_to_name(__CGNThreadState state) {
 	return "waiting";
     case __CGN_THREAD_STATE_DONE:
 	return "done";
+    default:
+	return "invalid";
     }
-
-    return "!invalid!";
 }
 
 void print_threads(void) {
@@ -74,7 +74,6 @@ static __CGNThreadBlock *add_block(void) {
 void seagreen_init_rt(void) {
     if (__cgn_threadl.head) {
         // No need to initialize if already initialized
-        // TODO: Perhaps this should return an error code
         return;
     }
 
@@ -142,9 +141,16 @@ __attribute__((noreturn)) void __cgn_scheduler(void) {
                         __CGNThread *running_thread = __cgn_curr_thread;
                         __cgn_curr_thread = staged_thread;
 
-                        running_thread->state = __CGN_THREAD_STATE_READY;
+			if (running_thread->state != __CGN_THREAD_STATE_WAITING) {
+			    running_thread->state = __CGN_THREAD_STATE_READY;
+			}
+
                         staged_thread->state = __CGN_THREAD_STATE_RUNNING;
 
+			// Won't loop after context switch; increment thread position for next access to
+			// scheduler
+			++__cgn_sched_thread_pos;
+			
                         __cgn_loadctx(&staged_thread->ctx);
                     }
                 }

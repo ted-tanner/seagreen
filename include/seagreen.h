@@ -114,6 +114,9 @@ __CGNThread *__cgn_get_curr_thread(void);
 		     t->awaited_thread_id = (handle).id;		\
 		     t->state = __CGN_THREAD_STATE_WAITING;		\
 									\
+		     /* Because thread is waiting, the curr thread */	\
+		     /* won't be scheduled until awaited thread has */	\
+		     /* finished its execution */			\
 		     async_yield();					\
 									\
 		     uint64_t pos = (handle).id % 64;			\
@@ -127,6 +130,9 @@ __CGNThread *__cgn_get_curr_thread(void);
 		     t->awaited_thread_id = (handle).id;		\
 		     t->state = __CGN_THREAD_STATE_WAITING;		\
 									\
+		     /* Because thread is waiting, the curr thread */	\
+		     /* won't be scheduled until awaited thread has */	\
+		     /* finished its execution */			\
 		     async_yield();					\
 									\
 		     uint64_t pos = (handle).id % 64;			\
@@ -159,7 +165,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		handle;							\
 	    }),                                                         \
 	signed char: ({							\
-		CGNThreadHandle_signedchar handle;		\
+		CGNThreadHandle_signedchar handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
@@ -177,7 +183,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		handle;							\
 	    }),                                                         \
 	unsigned char: ({						\
-		CGNThreadHandle_unsignedchar handle;		\
+		CGNThreadHandle_unsignedchar handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
@@ -213,7 +219,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		handle;							\
 	    }),                                                         \
 	unsigned short: ({						\
-		CGNThreadHandle_unsignedshort handle;		\
+		CGNThreadHandle_unsignedshort handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
@@ -249,7 +255,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		handle;                                                 \
 	    }),                                                         \
 	unsigned int: ({						\
-		CGNThreadHandle_unsignedint handle;		\
+		CGNThreadHandle_unsignedint handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
@@ -285,7 +291,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		handle;							\
 	    }),                                                         \
 	unsigned long: ({						\
-		CGNThreadHandle_unsignedlong handle;		\
+		CGNThreadHandle_unsignedlong handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
@@ -375,7 +381,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		handle;							\
 	    }),                                                         \
 	long double: ({							\
-		CGNThreadHandle_longdouble handle;		\
+		CGNThreadHandle_longdouble handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
@@ -393,7 +399,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		handle;							\
 	    }),                                                         \
 	void *: ({							\
-		CGNThreadHandle_voidptr handle;			\
+		CGNThreadHandle_voidptr handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
 									\
