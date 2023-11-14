@@ -1,86 +1,33 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "include/seagreen.h"
 #include "seagreen.h"
 
-// #define USE_U64
-
-#ifdef USE_U64
-
-async uint64_t foo(uint64_t a, uint64_t b) {
-    printf("foo(%llu, %llu) - 1\n", a, b);
-    for (int i = 0; i < INT32_MAX; ++i) {
-        __asm__ volatile("nop");
-    }
-
-    async_yield();
-
-    printf("foo(%llu, %llu) - 2\n", a, b);
-    for (int i = 0; i < INT32_MAX; ++i) {
-        __asm__ volatile("nop");
-    }
-
-    async_yield();
-
-    printf("foo(%llu, %llu) - 3\n", a, b);
-    for (int i = 0; i < INT32_MAX; ++i) {
-        __asm__ volatile("nop");
-    }
-
-    async_yield();
-
-    printf("foo(%llu, %llu) - 4\n", a, b);
-
-    return a + b;
-}
-
-int main(void) {
-    printf("Initializing runtime...\n");
-    seagreen_init_rt();
-
-    printf("Starting foo(1, 2)...\n");
-    CGNThreadHandle_unsignedlonglong h1 = async_run(foo(1, 2));
-
-    printf("Starting foo(3, 4)...\n");
-    CGNThreadHandle_unsignedlonglong h2 = async_run(foo(3, 4));
-
-    printf("Awaiting...\n");
-
-    uint64_t foo1_res = await(h1);
-    printf("foo(1, 2) returned %llu\n", foo1_res);
-
-    uint64_t foo2_res = await(h2);
-    printf("foo(3, 4) returned %llu\n", foo2_res);
-
-    return 0;
-}
-
-#else
-
 async int foo(int a, int b) {
+    struct timespec ts = {
+	.tv_sec = 0,
+	.tv_nsec = 500000000,
+    };
+
     printf("foo(%d, %d) - 1\n", a, b);
-    for (int i = 0; i < INT32_MAX; ++i) {
-        __asm__ volatile("nop");
-    }
+    nanosleep(&ts, NULL);
 
     async_yield();
 
     printf("foo(%d, %d) - 2\n", a, b);
-    for (int i = 0; i < INT32_MAX; ++i) {
-        __asm__ volatile("nop");
-    }
+    nanosleep(&ts, NULL);
 
     async_yield();
 
     printf("foo(%d, %d) - 3\n", a, b);
-    for (int i = 0; i < INT32_MAX; ++i) {
-        __asm__ volatile("nop");
-    }
+    nanosleep(&ts, NULL);
 
     async_yield();
 
     printf("foo(%d, %d) - 4\n", a, b);
+    nanosleep(&ts, NULL);
 
     return a + b;
 }
@@ -90,23 +37,23 @@ int main(void) {
     seagreen_init_rt();
 
     printf("Starting foo(1, 2)...\n");
-    CGNThreadHandle_int h1 = async_run(foo(1, 2));
+    CGNThreadHandle_int t1 = async_run(foo(1, 2));
 
     printf("Starting foo(3, 4)...\n");
-    CGNThreadHandle_int h2 = async_run(foo(3, 4));
+    CGNThreadHandle_int t2 = async_run(foo(3, 4));
 
     printf("Awaiting...\n");
 
-    int foo1_res = await(h1);
+    int foo1_res = await(t1);
     printf("foo(1, 2) returned %d\n", foo1_res);
 
-    int foo2_res = await(h2);
+    int foo2_res = await(t2);
     printf("foo(3, 4) returned %d\n", foo2_res);
+
+    seagreen_free_rt();
 
     return 0;
 }
-
-#endif
 
 // TODO: Test with ints
 // TODO: Test with floats
