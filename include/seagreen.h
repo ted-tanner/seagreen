@@ -25,6 +25,8 @@ typedef unsigned long long unsignedlonglong;
 typedef long double longdouble;
 typedef void *voidptr;
 
+#define __CGN_INITIAL_STACK_SIZE 2000000
+
 #define __cgn_define_handle_type(T)		\
     typedef struct _CGNThreadHandle_##T {	\
 	uint64_t id;				\
@@ -90,7 +92,7 @@ void seagreen_init_rt(void);
 void seagreen_free_rt(void);
 void async_yield(void);
 
-__attribute__((noreturn)) void __cgn_scheduler(void);
+void __cgn_scheduler(void);
 
 __CGNThreadBlock *__cgn_get_block(uint64_t id);
 __CGNThread *__cgn_get_thread(uint64_t id);

@@ -13,7 +13,6 @@ _Thread_local __CGNThreadBlock *__cgn_sched_block = 0;
 _Thread_local uint64_t __cgn_sched_block_pos = 0;
 _Thread_local uint64_t __cgn_sched_thread_pos = 0;
 
-
 #ifdef CGN_DEBUG
 
 static char *state_to_name(__CGNThreadState state) {
@@ -140,7 +139,7 @@ void async_yield(void) {
     }
 }
 
-__attribute__((noreturn)) void __cgn_scheduler(void) {
+void __cgn_scheduler(void) {
     while (1) {
         for (; __cgn_sched_block; __cgn_sched_block = __cgn_sched_block->next, ++__cgn_sched_block_pos) {
             if (__cgn_sched_block->unused_threads == UINT64_MAX) {
@@ -223,15 +222,18 @@ __CGNThread *__cgn_add_thread(uint64_t *id) {
     __CGNThread *t = __cgn_add_thread_keep_stack(id);
 
     // TODO: Handle the thread's stack more efficiently
-    void *thread_stack = malloc(16000);
+    void *thread_stack = malloc(__CGN_INITIAL_STACK_SIZE);
     __cgn_check_malloc(thread_stack);
 
     t->original_stack_ptr = thread_stack;
 
+    // Stack grows downwards
+    thread_stack = (void *) ((uint64_t) thread_stack + __CGN_INITIAL_STACK_SIZE);
+
     // In certain architectures, the stack must be aligned to 16 bytes
-    uint64_t stack_misalignment = (uint64_t) thread_stack % 16 + 1024;
+    uint64_t stack_misalignment = (uint64_t) thread_stack % 16;
     if (stack_misalignment) {
-	thread_stack += stack_misalignment;
+	thread_stack -= stack_misalignment;
     }
     t->stack = thread_stack;
 
