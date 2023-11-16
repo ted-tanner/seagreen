@@ -61,6 +61,8 @@ typedef struct __CGNThread_ {
     uint64_t awaited_thread_id;
     uint64_t return_val;
 
+    uint64_t awaiting_thread_count;
+
     _Bool yield_toggle;
     _Bool run_toggle;
 } __CGNThread;
@@ -88,6 +90,7 @@ __attribute__((noreturn)) void __cgn_scheduler(void);
 
 __CGNThreadBlock *__cgn_get_block(uint64_t id);
 __CGNThread *__cgn_get_thread(uint64_t id);
+__CGNThread *__cgn_get_thread_by_block(__CGNThreadBlock *block, uint64_t pos);
 __CGNThread *__cgn_add_thread(uint64_t *id);
 void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos);
 
@@ -110,35 +113,47 @@ __CGNThread *__cgn_get_curr_thread(void);
 #define await(handle)							\
     _Generic((handle),							\
 	     CGNThreadHandle_void: ({					\
-		     __CGNThread *t = __cgn_get_curr_thread();		\
-		     t->awaited_thread_id = (handle).id;		\
-		     t->state = __CGN_THREAD_STATE_WAITING;		\
+		     __CGNThread *t_curr = __cgn_get_curr_thread();	\
+		     t_curr->awaited_thread_id = (handle).id;		\
+		     t_curr->state = __CGN_THREAD_STATE_WAITING;	\
+									\
+		     uint64_t pos = (handle).id % 64;			\
+		     __CGNThreadBlock *block = __cgn_get_block((handle).id); \
+		     							\
+		     __CGNThread *t = &block->threads[pos];		\
+		     t->awaiting_thread_count++;			\
 									\
 		     /* Because thread is waiting, the curr thread */	\
 		     /* won't be scheduled until awaited thread has */	\
 		     /* finished its execution */			\
 		     async_yield();					\
 									\
-		     uint64_t pos = (handle).id % 64;			\
-		     __CGNThreadBlock *block = __cgn_get_block((handle).id); \
-		     __cgn_remove_thread(block, pos);			\
+		     if (!t->awaiting_thread_count) {			\
+			 __cgn_remove_thread(block, pos);		\
+		     }							\
 									\
 		     (void)0;						\
 		 }),							\
 	     default: ({						\
-		     __CGNThread *t = __cgn_get_curr_thread();		\
-		     t->awaited_thread_id = (handle).id;		\
-		     t->state = __CGN_THREAD_STATE_WAITING;		\
+		     __CGNThread *t_curr = __cgn_get_curr_thread();	\
+		     t_curr->awaited_thread_id = (handle).id;		\
+		     t_curr->state = __CGN_THREAD_STATE_WAITING;	\
+									\
+		     uint64_t pos = (handle).id % 64;			\
+		     __CGNThreadBlock *block = __cgn_get_block((handle).id); \
+		     							\
+		     __CGNThread *t = &block->threads[pos];		\
+		     t->awaiting_thread_count++;			\
 									\
 		     /* Because thread is waiting, the curr thread */	\
 		     /* won't be scheduled until awaited thread has */	\
 		     /* finished its execution */			\
 		     async_yield();					\
 									\
-		     uint64_t pos = (handle).id % 64;			\
-		     __CGNThreadBlock *block = __cgn_get_block((handle).id); \
 		     uint64_t return_val = block->threads[pos].return_val; \
-		     __cgn_remove_thread(block, pos);			\
+		     if (!t->awaiting_thread_count) {			\
+			 __cgn_remove_thread(block, pos);		\
+		     }							\
 									\
 		     return_val;					\
 		 }))

@@ -19,6 +19,7 @@ Some additional niceties of SeaGreen:
 
 ## The SeaGreen Pirate's Code (invariants/rules for using the library)
 
+* If ye call `async_yield()` in a function, ye must call that function using `async_run()` or ye shall walk the plank.
 * If ye call `async_run()`, `await()`, `async_yield()`, `async_retval()`, or `async_block_on()` without first calling `seagreen_init_rt()`, ye shall walk the plank.
 * If ye call `async_run()`, `await()`, `async_yield()`, `async_retval()`, or `async_block_on()` after calling `seagreen_free_rt()`, ye shall walk the plank.
 * If ye call `sync_block_on(fn())`, ye shall be prepared for the arguments passed to `fn()` to be accessed on a different thread or ye shall walk the plank (if ye get caught).
@@ -29,7 +30,6 @@ If ye don' heed these warnin's, ye may be squacked at by Seggie the SegFault par
 
 ## TODO
 
-* Stacks of threads are conflicing
 * Use stdint types in macros rather than int/long/short/etc
 * Multithreaded scheduler (in a separate header).
   - Linked list for threads that is synchronized using something similar to Linux's RCU.

@@ -41,10 +41,12 @@ void print_threads(void) {
 
 	    if (!is_thread_unused) {
 		__CGNThread *thread = &block->threads[pos];
-		printf("thread %llu:\n\tstate: %s\n\tawaiting: %llu\n\tptr: %p\n\n",
+		printf("thread %llu:\n\tstate: %s\n\tawaiting: %llu\n\tawait count: %llu\n\treturn_val as int: %d\n\tptr: %p\n\n",
 		       id,
 		       state_to_name(thread->state),
 		       thread->awaited_thread_id,
+		       thread->awaiting_thread_count,
+		       (int) thread->return_val,
 		       thread);
 	    }
 	}
@@ -134,14 +136,22 @@ __attribute__((noreturn)) void __cgn_scheduler(void) {
                         continue;
                     }
 
-                    if ((staged_thread->state == __CGN_THREAD_STATE_READY) ||
-                        (staged_thread->state == __CGN_THREAD_STATE_WAITING &&
-                         __cgn_get_thread(staged_thread->awaited_thread_id)->state == __CGN_THREAD_STATE_DONE))
-                    {
+		    if (staged_thread->state == __CGN_THREAD_STATE_WAITING) {
+			__CGNThread *awaited_thread = __cgn_get_thread(staged_thread->awaited_thread_id);
+			if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
+			    awaited_thread->awaiting_thread_count--;
+			    staged_thread->state = __CGN_THREAD_STATE_READY;
+			} else {
+			    continue;
+			}
+		    }
+
+                    if (staged_thread->state == __CGN_THREAD_STATE_READY) {
+			print_threads();
                         __CGNThread *running_thread = __cgn_curr_thread;
                         __cgn_curr_thread = staged_thread;
 
-			if (running_thread->state != __CGN_THREAD_STATE_WAITING) {
+			if (running_thread->state == __CGN_THREAD_STATE_RUNNING) {
 			    running_thread->state = __CGN_THREAD_STATE_READY;
 			}
 

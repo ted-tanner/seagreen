@@ -8,7 +8,7 @@
 async int foo(int a, int b) {
     struct timespec ts = {
 	.tv_sec = 0,
-	.tv_nsec = 500000000,
+	.tv_nsec = 250000000,
     };
 
     printf("foo(%d, %d) - 1\n", a, b);
