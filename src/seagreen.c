@@ -81,7 +81,7 @@ void seagreen_init_rt(void) {
         return;
     }
 
-    __CGNThreadBlock *block = malloc(sizeof(__CGNThreadBlock));
+    __CGNThreadBlock *block = (__CGNThreadBlock *)malloc(sizeof(__CGNThreadBlock));
     __cgn_check_malloc(block);
 
     block->next = 0;
@@ -166,7 +166,6 @@ __attribute__((noreturn)) void __cgn_scheduler(void) {
 		    if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
 			awaited_thread->awaiting_thread_count--;
 			staged_thread->state = __CGN_THREAD_STATE_READY;
-			staged_thread->yield_toggle = 0;
 		    } else {
 			continue;
 		    }
@@ -232,7 +231,6 @@ __CGNThread *__cgn_add_thread(uint64_t *id) {
     if (stack_misalignment) {
 	thread_stack += stack_misalignment;
     }
-
     t->stack = thread_stack;
     t->stack_misalignment = stack_misalignment;
 
@@ -264,6 +262,7 @@ __CGNThread *__cgn_add_thread_keep_stack(uint64_t *id) {
     block->threads[pos].awaiting_thread_count = 0;
     block->threads[pos].stack = 0;
     block->threads[pos].stack_misalignment = 0;
+    block->threads[pos].was_stack_set = 0;
     block->threads[pos].yield_toggle = 1;
     block->threads[pos].run_toggle = 0;
 

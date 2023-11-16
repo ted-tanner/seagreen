@@ -63,7 +63,8 @@ typedef struct __CGNThread_ {
     uint64_t return_val;
 
     void *stack;
-    uint16_t stack_misalignment;
+    uint8_t stack_misalignment;
+    _Bool was_stack_set;
 
     _Bool yield_toggle;
     _Bool run_toggle;
@@ -119,6 +120,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		     /* won't be scheduled until awaited thread has */	\
 		     /* finished its execution */			\
 		     async_yield();					\
+		     t_curr->state = __CGN_THREAD_STATE_RUNNING;	\
 		     t_curr->yield_toggle = 0;				\
 									\
 		     if (!t->awaiting_thread_count) {			\
@@ -142,6 +144,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		     /* won't be scheduled until awaited thread has */	\
 		     /* finished its execution */			\
 		     async_yield();					\
+		     t_curr->state = __CGN_THREAD_STATE_RUNNING;	\
 		     t_curr->yield_toggle = 0;				\
 									\
 		     uint64_t return_val = block->threads[pos].return_val; \
@@ -152,20 +155,24 @@ __CGNThread *__cgn_get_curr_thread(void);
 		     return_val;					\
 		 }))
 
-#define async_run(V)							\
+#define async_run(Fn)							\
     _Generic(								\
-	(V),								\
+	(Fn),								\
 	char: ({							\
 		CGNThreadHandle_char handle;                            \
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle)  {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
@@ -178,13 +185,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_signedchar handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -197,13 +208,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedchar handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -216,13 +231,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_short handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -235,13 +254,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedshort handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -254,13 +277,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_int handle;                             \
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
@@ -273,13 +300,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedint handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -292,13 +323,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_long handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -311,13 +346,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedlong handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -330,13 +369,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_longlong handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -349,13 +392,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedlonglong handle;		\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -368,13 +415,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_float handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -387,13 +438,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_double handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -406,13 +461,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_longdouble handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -425,13 +484,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_voidptr handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    uint64_t retval = (uint64_t) V;			\
+		    uint64_t retval = (uint64_t) Fn;			\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->return_val = retval;			\
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
@@ -444,13 +507,17 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_void handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
-		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
+									\
+		if (!t->was_stack_set) {				\
+		    __cgn_set_stack_ptr(&t->ctx, t->stack);		\
+		    t->was_stack_set = 1;				\
+		}							\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
 									\
 		if (temp_run_toggle) {					\
-		    V;							\
+		    Fn;							\
 		    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
 		    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
 		    __cgn_scheduler();					\
