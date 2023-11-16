@@ -216,7 +216,7 @@ __CGNThread *__cgn_add_thread(uint64_t *id) {
     // Mark thread as used
     block->unused_threads &= ~(1ULL << (63 - pos));
     block->threads[pos].state = __CGN_THREAD_STATE_READY;
-
+    block->threads[pos].awaiting_thread_count = 0;
     block->threads[pos].yield_toggle = 1;
     block->threads[pos].run_toggle = 0;
 

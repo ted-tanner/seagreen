@@ -59,9 +59,8 @@ typedef struct __CGNThread_ {
     __CGNThreadCtx ctx;
 
     uint64_t awaited_thread_id;
-    uint64_t return_val;
-
     uint64_t awaiting_thread_count;
+    uint64_t return_val;
 
     _Bool yield_toggle;
     _Bool run_toggle;
