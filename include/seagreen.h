@@ -62,6 +62,8 @@ typedef struct __CGNThread_ {
     uint64_t awaiting_thread_count;
     uint64_t return_val;
 
+    void *stack;
+
     _Bool yield_toggle;
     _Bool run_toggle;
 } __CGNThread;
@@ -91,6 +93,7 @@ __CGNThreadBlock *__cgn_get_block(uint64_t id);
 __CGNThread *__cgn_get_thread(uint64_t id);
 __CGNThread *__cgn_get_thread_by_block(__CGNThreadBlock *block, uint64_t pos);
 __CGNThread *__cgn_add_thread(uint64_t *id);
+__CGNThread *__cgn_add_thread_keep_stack(uint64_t *id);
 void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos);
 
 __CGNThread *__cgn_get_curr_thread(void);
@@ -254,6 +257,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_int handle;                             \
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\

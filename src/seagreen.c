@@ -1,5 +1,6 @@
 #include "seagreen.h"
 
+#include <_types/_uint64_t.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -92,7 +93,7 @@ void seagreen_init_rt(void) {
     __cgn_threadl.thread_count = 0;
 
     uint64_t _id;
-    __CGNThread *thread = __cgn_add_thread(&_id);
+    __CGNThread *thread = __cgn_add_thread_keep_stack(&_id);
 
     thread->state = __CGN_THREAD_STATE_RUNNING;
 
@@ -104,6 +105,12 @@ void seagreen_free_rt(void) {
     __CGNThreadBlock *block = __cgn_threadl.head;
 
     while (block) {
+	for (uint64_t pos = 0; pos < 64; ++pos) {
+	    if (block->threads[pos].stack) {
+		free(block->threads[pos].stack);
+	    }
+	}
+
         __CGNThreadBlock *next = block->next;
         free(block);
         block = next;
@@ -147,7 +154,6 @@ __attribute__((noreturn)) void __cgn_scheduler(void) {
 		    }
 
                     if (staged_thread->state == __CGN_THREAD_STATE_READY) {
-			print_threads();
                         __CGNThread *running_thread = __cgn_curr_thread;
                         __cgn_curr_thread = staged_thread;
 
@@ -195,6 +201,17 @@ __CGNThread *__cgn_get_thread(uint64_t id) {
 }
 
 __CGNThread *__cgn_add_thread(uint64_t *id) {
+    __CGNThread *t = __cgn_add_thread_keep_stack(id);
+
+    // TODO: Handle the thread's stack more efficiently
+    void *thread_stack = malloc(2000000);
+    __cgn_check_malloc(thread_stack);
+    t->stack = thread_stack;
+
+    return t;
+}
+
+__CGNThread *__cgn_add_thread_keep_stack(uint64_t *id) {
     __CGNThreadBlock *block = __cgn_threadl.tail;
 
     uint64_t block_pos = __cgn_threadl.block_count - 1;
@@ -217,6 +234,7 @@ __CGNThread *__cgn_add_thread(uint64_t *id) {
     block->unused_threads &= ~(1ULL << (63 - pos));
     block->threads[pos].state = __CGN_THREAD_STATE_READY;
     block->threads[pos].awaiting_thread_count = 0;
+    block->threads[pos].stack = 0;
     block->threads[pos].yield_toggle = 1;
     block->threads[pos].run_toggle = 0;
 
@@ -228,6 +246,9 @@ __CGNThread *__cgn_add_thread(uint64_t *id) {
 }
 
 void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos) {
+    free(block->threads[pos].stack);
+    block->threads[pos].stack = 0;
+
     block->unused_threads |= 1ULL << (63 - (pos % 64));
     --__cgn_threadl.thread_count;
 }
