@@ -74,8 +74,8 @@ typedef struct __CGNThreadCtx_ {
 
 #endif
 
-extern void __cgn_loadctx(__CGNThreadCtx *ctx);
-extern void __cgn_savectx(__CGNThreadCtx *ctx);
+extern __attribute__((noinline)) void __cgn_loadctx(__CGNThreadCtx *ctx);
+extern __attribute__((noinline)) void __cgn_savectx(__CGNThreadCtx *ctx);
 
 void __cgn_set_stack_ptr(__CGNThreadCtx *ctx, void *ptr);
 

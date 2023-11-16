@@ -223,16 +223,17 @@ __CGNThread *__cgn_add_thread(uint64_t *id) {
     __CGNThread *t = __cgn_add_thread_keep_stack(id);
 
     // TODO: Handle the thread's stack more efficiently
-    void *thread_stack = malloc(2000000);
+    void *thread_stack = malloc(16000);
     __cgn_check_malloc(thread_stack);
 
+    t->original_stack_ptr = thread_stack;
+
     // In certain architectures, the stack must be aligned to 16 bytes
-    uint64_t stack_misalignment = (uint64_t) thread_stack % 16;
+    uint64_t stack_misalignment = (uint64_t) thread_stack % 16 + 1024;
     if (stack_misalignment) {
 	thread_stack += stack_misalignment;
     }
     t->stack = thread_stack;
-    t->stack_misalignment = stack_misalignment;
 
     return t;
 }
@@ -260,8 +261,8 @@ __CGNThread *__cgn_add_thread_keep_stack(uint64_t *id) {
     block->unused_threads &= ~(1ULL << (63 - pos));
     block->threads[pos].state = __CGN_THREAD_STATE_READY;
     block->threads[pos].awaiting_thread_count = 0;
+    block->threads[pos].original_stack_ptr = 0;
     block->threads[pos].stack = 0;
-    block->threads[pos].stack_misalignment = 0;
     block->threads[pos].was_stack_set = 0;
     block->threads[pos].yield_toggle = 1;
     block->threads[pos].run_toggle = 0;
@@ -275,8 +276,9 @@ __CGNThread *__cgn_add_thread_keep_stack(uint64_t *id) {
 
 void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos) {
     __CGNThread *t = &block->threads[pos];
-    if (t->stack) {
-	free(t->stack);
+    if (t->original_stack_ptr) {
+	free(t->original_stack_ptr);
+	block->threads[pos].original_stack_ptr = 0;
 	block->threads[pos].stack = 0;
     }
 

@@ -36,7 +36,7 @@ __CGN_LOADCTX_NAME:
         movq %rdi, 56(%rcx)
 
         ret
-        
+
 #elif defined(__aarch64__)
 
 .balign 4

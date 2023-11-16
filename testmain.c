@@ -82,6 +82,7 @@ int main(void) {
 }
 
 // TODO: Test calling async within async
+// TODO: Test calling async from sync function called from within within async
 // TODO: Test with ints
 // TODO: Test with floats
 // TODO: Test with void

@@ -62,8 +62,8 @@ typedef struct __CGNThread_ {
     uint64_t awaiting_thread_count;
     uint64_t return_val;
 
+    void *original_stack_ptr;
     void *stack;
-    uint8_t stack_misalignment;
     _Bool was_stack_set;
 
     _Bool yield_toggle;
