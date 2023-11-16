@@ -63,6 +63,7 @@ typedef struct __CGNThread_ {
     uint64_t return_val;
 
     void *stack;
+    uint16_t stack_misalignment;
 
     _Bool yield_toggle;
     _Bool run_toggle;
@@ -86,6 +87,7 @@ typedef struct __CGNThreadList_ {
 
 void seagreen_init_rt(void);
 void seagreen_free_rt(void);
+void async_yield(void);
 
 __attribute__((noreturn)) void __cgn_scheduler(void);
 
@@ -99,18 +101,6 @@ void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos);
 __CGNThread *__cgn_get_curr_thread(void);
 
 #define async __attribute__((noinline))
-
-#define async_yield() {					\
-	__CGNThread *t = __cgn_get_curr_thread();	\
-	__cgn_savectx(&t->ctx);				\
-							\
-	_Bool temp_yield_toggle = t->yield_toggle;	\
-	t->yield_toggle = !t->yield_toggle;		\
-							\
-	if (temp_yield_toggle) {			\
-	    __cgn_scheduler();				\
-	}						\
-    }
 
 #define await(handle)							\
     _Generic((handle),							\
@@ -129,6 +119,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		     /* won't be scheduled until awaited thread has */	\
 		     /* finished its execution */			\
 		     async_yield();					\
+		     t_curr->yield_toggle = 0;				\
 									\
 		     if (!t->awaiting_thread_count) {			\
 			 __cgn_remove_thread(block, pos);		\
@@ -151,6 +142,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		     /* won't be scheduled until awaited thread has */	\
 		     /* finished its execution */			\
 		     async_yield();					\
+		     t_curr->yield_toggle = 0;				\
 									\
 		     uint64_t return_val = block->threads[pos].return_val; \
 		     if (!t->awaiting_thread_count) {			\

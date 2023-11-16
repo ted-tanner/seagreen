@@ -1,5 +1,3 @@
-// TODO: Do floating point registers need to be saved?
-
 #if defined(__WIN64__) || defined(__APPLE__)
 #define __CGN_LOADCTX_NAME ___cgn_loadctx
 #elif

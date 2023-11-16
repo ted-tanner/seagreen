@@ -3,6 +3,7 @@
 #include <_types/_uint64_t.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 _Thread_local __CGNThreadList __cgn_threadl = {0};
 
@@ -106,8 +107,10 @@ void seagreen_free_rt(void) {
 
     while (block) {
 	for (uint64_t pos = 0; pos < 64; ++pos) {
-	    if (block->threads[pos].stack) {
-		free(block->threads[pos].stack);
+	    _Bool is_thread_unused = (block->unused_threads << pos) & (1ULL << 63);
+
+	    if (!is_thread_unused) {
+		__cgn_remove_thread(block, pos);
 	    }
 	}
 
@@ -125,6 +128,18 @@ void seagreen_free_rt(void) {
     __cgn_sched_thread_pos = 0;
 }
 
+void async_yield(void) {
+    __CGNThread *t = __cgn_get_curr_thread();
+    __cgn_savectx(&t->ctx);
+
+    _Bool temp_yield_toggle = t->yield_toggle;
+    t->yield_toggle = !t->yield_toggle;
+
+    if (temp_yield_toggle) {
+	__cgn_scheduler();
+    }
+}
+
 __attribute__((noreturn)) void __cgn_scheduler(void) {
     while (1) {
         for (; __cgn_sched_block; __cgn_sched_block = __cgn_sched_block->next, ++__cgn_sched_block_pos) {
@@ -136,40 +151,45 @@ __attribute__((noreturn)) void __cgn_scheduler(void) {
                 _Bool is_thread_unused =
                     (__cgn_sched_block->unused_threads << __cgn_sched_thread_pos) & (1ULL << 63);
 
-                if (!is_thread_unused) {
-                    __CGNThread *staged_thread = &__cgn_sched_block->threads[__cgn_sched_thread_pos];
+		if (is_thread_unused) {
+		    continue;
+		}
 
-                    if (staged_thread == __cgn_curr_thread) {
-                        continue;
-                    }
+		__CGNThread *staged_thread = &__cgn_sched_block->threads[__cgn_sched_thread_pos];
 
-		    if (staged_thread->state == __CGN_THREAD_STATE_WAITING) {
-			__CGNThread *awaited_thread = __cgn_get_thread(staged_thread->awaited_thread_id);
-			if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
-			    awaited_thread->awaiting_thread_count--;
-			    staged_thread->state = __CGN_THREAD_STATE_READY;
-			} else {
-			    continue;
-			}
+		if (staged_thread == __cgn_curr_thread) {
+		    continue;
+		}
+
+		if (staged_thread->state == __CGN_THREAD_STATE_WAITING) {
+		    __CGNThread *awaited_thread = __cgn_get_thread(staged_thread->awaited_thread_id);
+		    if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
+			awaited_thread->awaiting_thread_count--;
+			staged_thread->state = __CGN_THREAD_STATE_READY;
+			staged_thread->yield_toggle = 0;
+		    } else {
+			continue;
 		    }
+		}
 
-                    if (staged_thread->state == __CGN_THREAD_STATE_READY) {
-                        __CGNThread *running_thread = __cgn_curr_thread;
-                        __cgn_curr_thread = staged_thread;
+		if (staged_thread->state != __CGN_THREAD_STATE_READY) {
+		    continue;
+		}
 
-			if (running_thread->state == __CGN_THREAD_STATE_RUNNING) {
-			    running_thread->state = __CGN_THREAD_STATE_READY;
-			}
+		__CGNThread *running_thread = __cgn_curr_thread;
+		__cgn_curr_thread = staged_thread;
 
-                        staged_thread->state = __CGN_THREAD_STATE_RUNNING;
+		if (running_thread->state == __CGN_THREAD_STATE_RUNNING) {
+		    running_thread->state = __CGN_THREAD_STATE_READY;
+		}
 
-			// Won't loop after context switch; increment thread position for next access to
-			// scheduler
-			++__cgn_sched_thread_pos;
+		staged_thread->state = __CGN_THREAD_STATE_RUNNING;
+
+		// Won't loop after loading new ctx; increment thread position for next access
+		// to scheduler
+		++__cgn_sched_thread_pos;
 			
-                        __cgn_loadctx(&staged_thread->ctx);
-                    }
-                }
+		__cgn_loadctx(&staged_thread->ctx);
             }
 
             __cgn_sched_thread_pos = 0;
@@ -206,7 +226,15 @@ __CGNThread *__cgn_add_thread(uint64_t *id) {
     // TODO: Handle the thread's stack more efficiently
     void *thread_stack = malloc(2000000);
     __cgn_check_malloc(thread_stack);
+
+    // In certain architectures, the stack must be aligned to 16 bytes
+    uint64_t stack_misalignment = (uint64_t) thread_stack % 16;
+    if (stack_misalignment) {
+	thread_stack += stack_misalignment;
+    }
+
     t->stack = thread_stack;
+    t->stack_misalignment = stack_misalignment;
 
     return t;
 }
@@ -235,6 +263,7 @@ __CGNThread *__cgn_add_thread_keep_stack(uint64_t *id) {
     block->threads[pos].state = __CGN_THREAD_STATE_READY;
     block->threads[pos].awaiting_thread_count = 0;
     block->threads[pos].stack = 0;
+    block->threads[pos].stack_misalignment = 0;
     block->threads[pos].yield_toggle = 1;
     block->threads[pos].run_toggle = 0;
 
@@ -246,8 +275,11 @@ __CGNThread *__cgn_add_thread_keep_stack(uint64_t *id) {
 }
 
 void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos) {
-    free(block->threads[pos].stack);
-    block->threads[pos].stack = 0;
+    __CGNThread *t = &block->threads[pos];
+    if (t->stack) {
+	free(t->stack);
+	block->threads[pos].stack = 0;
+    }
 
     block->unused_threads |= 1ULL << (63 - (pos % 64));
     --__cgn_threadl.thread_count;
