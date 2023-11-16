@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "include/seagreen.h"
 #include "seagreen.h"
 
 async int foo(int a, int b) {
@@ -11,44 +10,71 @@ async int foo(int a, int b) {
 	.tv_nsec = 250000000,
     };
 
-    printf("foo(%d, %d) - 1\n", a, b);
+    printf("foo() - 1\n");
     nanosleep(&ts, NULL);
 
     async_yield();
 
-    printf("foo(%d, %d) - 2\n", a, b);
+    printf("foo() - 2\n");
     nanosleep(&ts, NULL);
 
     async_yield();
 
-    printf("foo(%d, %d) - 3\n", a, b);
+    printf("foo() - 3\n");
     nanosleep(&ts, NULL);
 
     async_yield();
 
-    printf("foo(%d, %d) - 4\n", a, b);
+    printf("foo() - 4\n");
     nanosleep(&ts, NULL);
 
     return a + b;
+}
+
+async int bar(int a) {
+    struct timespec ts = {
+	.tv_sec = 0,
+	.tv_nsec = 250000000,
+    };
+
+    printf("bar() - 1\n");
+    nanosleep(&ts, NULL);
+
+    async_yield();
+
+    printf("bar() - 2\n");
+    nanosleep(&ts, NULL);
+
+    async_yield();
+
+    printf("bar() - 3\n");
+    nanosleep(&ts, NULL);
+
+    async_yield();
+
+    printf("bar() - 4\n");
+    nanosleep(&ts, NULL);
+
+    return a + 5;
 }
 
 int main(void) {
     printf("Initializing runtime...\n");
     seagreen_init_rt();
 
-    printf("Starting foo(1, 2)...\n");
+    printf("Starting foo()...\n");
     CGNThreadHandle_int t1 = async_run(foo(1, 2));
 
-    printf("Starting foo(3, 4)...\n");
-    CGNThreadHandle_int t2 = async_run(foo(3, 4));
+    printf("Starting bar()...\n");
+    CGNThreadHandle_int t2 = async_run(bar(3));
 
     printf("Awaiting...\n");
 
-    int foo1_res = await(t1);
-    printf("foo(1, 2) returned %d\n", foo1_res);
+    int foo_res = await(t1);
+    printf("foo() returned %d\n", foo_res);
 
-    int foo2_res = await(t2);
-    printf("foo(3, 4) returned %d\n", foo2_res);
+    int bar_res = await(t2);
+    printf("bar() returned %d\n", bar_res);
 
     seagreen_free_rt();
 

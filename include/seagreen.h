@@ -167,6 +167,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_char handle;                            \
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -185,6 +186,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_signedchar handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -203,6 +205,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedchar handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -221,6 +224,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_short handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -239,6 +243,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedshort handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -276,6 +281,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedint handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -294,6 +300,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_long handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -312,6 +319,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedlong handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -330,6 +338,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_longlong handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -348,6 +357,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_unsignedlonglong handle;		\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -366,6 +376,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_float handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -384,6 +395,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_double handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -402,6 +414,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_longdouble handle;			\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -420,6 +433,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_voidptr handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
@@ -438,6 +452,7 @@ __CGNThread *__cgn_get_curr_thread(void);
 		CGNThreadHandle_void handle;				\
 		__CGNThread *t = __cgn_add_thread(&handle.id);		\
 		__cgn_savectx(&t->ctx);					\
+		__cgn_set_stack_ptr(&t->ctx, t->stack);			\
 									\
 		_Bool temp_run_toggle = t->run_toggle;			\
 		t->run_toggle = !t->run_toggle;				\
