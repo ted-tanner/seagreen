@@ -6,8 +6,8 @@
 
 async int foo(int a, int b) {
     struct timespec ts = {
-	.tv_sec = 0,
-	.tv_nsec = 250000000,
+        .tv_sec = 0,
+        .tv_nsec = 250000000,
     };
 
     printf("foo() - 1\n");
@@ -33,8 +33,8 @@ async int foo(int a, int b) {
 
 async int bar(int a) {
     struct timespec ts = {
-	.tv_sec = 0,
-	.tv_nsec = 250000000,
+        .tv_sec = 0,
+        .tv_nsec = 250000000,
     };
 
     printf("bar() - 1\n");
