@@ -190,7 +190,7 @@ void async_yield(void) {
 void __cgn_scheduler(void) {
     while (1) {
         for (; sched_block; sched_block = sched_block->next, ++sched_block_pos) {
-            if (sched_block->used_thread_count == __CGN_THREAD_BLOCK_SIZE) {
+            if (!sched_block->used_thread_count) {
                 continue;
             }
 
@@ -266,6 +266,7 @@ __CGNThread *__cgn_add_thread(uint64_t *id, void **stack) {
     while (block->used_thread_count == __CGN_THREAD_BLOCK_SIZE) {
         if (!block->prev) {
             block = add_block();
+            block_pos = threadlist.block_count - 1;
             break;
         } else {
             block = block->prev;

@@ -40,7 +40,7 @@ fi
 
 function build_objs {
     if [[ $1 = "test" ]]; then
-        MACROS="-DCGN_TEST"
+        MACROS="-DCGN_DEBUG"
     else
         MACROS=""
     fi
@@ -71,7 +71,7 @@ function build_test {
     TEST_OUT="$OUT_DIR/tests"
 
     FILES="$OUT_DIR/$LIB_NAME.a $1"
-    MACROS="-DCGN_TEST"
+    MACROS="-DCGN_DEBUG"
 
     OUT_FILE=$TEST_OUT/$(file_to_test_name $1)
 
@@ -86,7 +86,7 @@ if [[ $1 = "test" ]]; then
     TEST_NAMES=()
 
     for FILE in $TEST_SRC_FILES; do
-        TEST_NAMES+=$(file_to_test_name $FILE)
+        TEST_NAMES+=" $(file_to_test_name $FILE)"
         build_test $FILE
     done &&
 

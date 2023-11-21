@@ -5,11 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "basic_usage",
+            "name": "1-basic-usage",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/tests/basic_usage",
+            "program": "${workspaceFolder}/target/tests/1-basic-usage",
             "cwd": "${workspaceFolder}"
-          }
+        },
+        {
+            "name": "2-many-threads",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/tests/2-many-threads",
+            "cwd": "${workspaceFolder}"
+        }
     ]
 }
