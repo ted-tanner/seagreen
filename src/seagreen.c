@@ -123,6 +123,9 @@ void seagreen_init_rt(void) {
 
     main_thread = &threadlist.head->threads[0];
     main_thread->state = __CGN_THREAD_STATE_RUNNING;
+    main_thread->run_toggle = 0;
+    main_thread->yield_toggle = 1;
+
     curr_thread = main_thread;
 
     sched_block = block;
@@ -279,14 +282,14 @@ __CGNThread *__cgn_add_thread(uint64_t *id, void **stack) {
     t->in_use = 1;
     t->state = __CGN_THREAD_STATE_READY;
 
-    t->run_toggle = 1;
-    t->yield_toggle = 0;
+    t->run_toggle = 0;
+    t->yield_toggle = 1;
 
     ++threadlist.thread_count;
     ++block->used_thread_count;
 
     *id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
-    *stack = &block->stacks[pos * (__CGN_STACK_SIZE + pagesize) + pagesize];
+    *stack = block->stacks + pos * (__CGN_STACK_SIZE + pagesize) + __CGN_STACK_SIZE;
 
     return t;
 }
