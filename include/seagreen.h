@@ -182,18 +182,15 @@ __CGNThread *__cgn_get_main_thread(void);
                      return_val;                                        \
                  }))
 
-#define async_run(Fn)                                                          \
-  _Generic(								\
+#define async_run(Fn)							\
+    _Generic(								\
         (Fn),								\
         char: ({                                                        \
                 CGNThreadHandle_char handle;                            \
-                void *stack;						\
+									\
+		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -204,19 +201,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         signed char: ({							\
                 CGNThreadHandle_signedchar handle;			\
-                void *stack;						\
+									\
+		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -227,19 +223,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         unsigned char: ({						\
                 CGNThreadHandle_unsignedchar handle;			\
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -250,19 +245,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         short: ({							\
                 CGNThreadHandle_short handle;				\
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -273,19 +267,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         unsigned short: ({						\
-                CGNThreadHandle_unsignedshort handle;			\
-                void *stack;						\
+		CGNThreadHandle_unsignedshort handle;			\
+									\
+		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -296,19 +289,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         int: ({								\
                 CGNThreadHandle_int handle;                             \
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -319,19 +311,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;                                                 \
             }),                                                         \
         unsigned int: ({                                                \
-                CGNThreadHandle_unsignedint handle;			\
-                void *stack;						\
+		CGNThreadHandle_unsignedint handle;			\
+									\
+		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -342,19 +333,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         long: ({                                                        \
                 CGNThreadHandle_long handle;				\
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -365,19 +355,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         unsigned long: ({						\
                 CGNThreadHandle_unsignedlong handle;			\
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -388,19 +377,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         long long: ({							\
                 CGNThreadHandle_longlong handle;                        \
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -411,19 +399,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         unsigned long long: ({						\
                 CGNThreadHandle_unsignedlonglong handle;                \
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -434,19 +421,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         float: ({							\
                 CGNThreadHandle_float handle;				\
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -457,19 +443,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         double: ({							\
                 CGNThreadHandle_double handle;				\
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -480,19 +465,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         void *: ({							\
-                CGNThreadHandle_voidptr handle;				\
-                void *stack;						\
+		CGNThreadHandle_voidptr handle;				\
+									\
+		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -503,19 +487,18 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->return_val = retval;			\
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }),                                                         \
         default: ({							\
                 CGNThreadHandle_void handle;				\
+									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
                 __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -525,7 +508,9 @@ __CGNThread *__cgn_get_main_thread(void);
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->state = __CGN_THREAD_STATE_DONE;	\
                     __cgn_scheduler();					\
-                }							\
+                } else {						\
+		    __cgn_set_stack_ptr(&t->ctx, stack);		\
+		}							\
                                                                         \
                 handle;							\
             }))

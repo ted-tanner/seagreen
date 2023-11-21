@@ -29,6 +29,7 @@ If ye don' heed these warnin's, ye may be squacked at by Seggie the SegFault par
 ## TODO
 
 * Get working with GCC
+* Rename variables local to macros (is this necessary?)
 * After same stack is used for a new thread 128 times, mmap and munmap (or VirtualAlloc with MEM_RESET)
 * If a thread took longer than 25 microseconds to execute, skip scheduling for the next *n* iterations, where *n* = min(1 + floor(microseconds / 100), 5)
 * Use stdint types in macros rather than int/long/short/etc
