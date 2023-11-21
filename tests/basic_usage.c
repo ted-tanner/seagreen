@@ -81,9 +81,11 @@ int main(void) {
     return 0;
 }
 
+// TODO: Test with a bunch of threads
 // TODO: Test calling async within async
 // TODO: Test calling async from sync function called from within async
-// TODO: Test with ints
+// TODO: Test with real IO
+// TODO: Test with uint64s
 // TODO: Test with floats
 // TODO: Test with void
 // TODO: Test on Linux

@@ -41,7 +41,6 @@ typedef unsigned int unsignedint;
 typedef unsigned long unsignedlong;
 typedef long long longlong;
 typedef unsigned long long unsignedlonglong;
-typedef long double longdouble;
 typedef void *voidptr;
 
 // The stack space allocated for each thread. Many of these pages will remain
@@ -71,7 +70,6 @@ __cgn_define_handle_type(longlong);
 __cgn_define_handle_type(unsignedlonglong);
 __cgn_define_handle_type(float);
 __cgn_define_handle_type(double);
-__cgn_define_handle_type(longdouble);
 __cgn_define_handle_type(voidptr);
 
 typedef enum __CGNThreadState_ {
@@ -125,7 +123,6 @@ __CGNThreadBlock *__cgn_get_block(uint64_t id);
 __CGNThread *__cgn_get_thread(uint64_t id);
 __CGNThread *__cgn_get_thread_by_block(__CGNThreadBlock *block, uint64_t pos);
 __CGNThread *__cgn_add_thread(uint64_t *id, void **stack);
-__CGNThread *__cgn_add_thread_keep_stack(uint64_t *id);
 void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos);
 
 __CGNThread *__cgn_get_curr_thread(void);
@@ -185,8 +182,8 @@ __CGNThread *__cgn_get_main_thread(void);
                      return_val;                                        \
                  }))
 
-#define async_run(Fn)							\
-    _Generic(								\
+#define async_run(Fn)                                                          \
+  _Generic(								\
         (Fn),								\
         char: ({                                                        \
                 CGNThreadHandle_char handle;                            \
@@ -486,29 +483,6 @@ __CGNThread *__cgn_get_main_thread(void);
                 }							\
                                                                         \
                 handle;							\
-            }),                                                         \
-        long double: ({							\
-                CGNThreadHandle_longdouble handle;			\
-                void *stack;						\
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
-                                                                        \
-                if (t != __cgn_get_main_thread()) {			\
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
-                }							\
-                                                                        \
-                _Bool temp_run_toggle = t->run_toggle;			\
-                t->run_toggle = !t->run_toggle;				\
-                                                                        \
-                if (temp_run_toggle) {					\
-                    uint64_t retval = (uint64_t) Fn;			\
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;			\
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;	\
-                    __cgn_scheduler();					\
-                }							\
-                                                                        \
-                handle;                					\
             }),                                                         \
         void *: ({							\
                 CGNThreadHandle_voidptr handle;				\

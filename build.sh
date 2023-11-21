@@ -1,22 +1,22 @@
 #!/bin/sh
 
-# Available args:
-#   - ./build.sh clean
-#   - ./build.sh test
-#   - ./build.sh test release
-#   - ./build.sh release
-
-CC=clang
-
-if [[ $1 = "release" ]]; then
-    OPT_LEVEL=O3
-elif [[ $1 = "test" && $2 = "release" ]]; then
-    OPT_LEVEL=O3
-else
-    OPT_LEVEL=O0
+if [[ $CC = "" ]]; then
+    CC=clang
 fi
 
-FLAGS="-Wall -Wextra -Werror -std=c11 -g"
+if [[ $OPT_LEVEL = "" ]]; then
+    if [[ $1 = "release" ]]; then
+        OPT_LEVEL=O3
+    elif [[ $1 = "test" && $2 = "release" ]]; then
+        OPT_LEVEL=O3
+    else
+        OPT_LEVEL=O0
+    fi
+fi
+
+if [[ $CC_FLAGS = "" ]]; then
+    CC_FLAGS="-Wall -Wextra -Werror -std=c11 -g"
+fi
 
 OUT_DIR=./target
 LIB_NAME=seagreenlib
@@ -39,16 +39,20 @@ if [[ $1 = "clean" ]]; then
 fi
 
 function build_objs {
-    MACROS=""
-    OUT="$OUT_DIR"
+    if [[ $1 = "test" ]]; then
+        MACROS="-DCGN_TEST"
+    else
+        MACROS=""
+    fi
 
+    OUT="$OUT_DIR"
     mkdir -p $OUT
 
     for FILE in $SRC_FILES; do
         FNAME=$(basename $FILE)
         FILE_NO_EXT="${FNAME%.*}"
         OBJ=" $OUT/$FILE_NO_EXT.o"
-        (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $FLAGS -c $FILE -o $OBJ -I$INCLUDE_DIR)
+        (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $CC_FLAGS -c $FILE -o $OBJ -I$INCLUDE_DIR)
 
         if [[ $? -ne 0 ]]; then
             exit 1
@@ -73,7 +77,7 @@ function build_test {
 
     mkdir -p $TEST_OUT
 
-    $CC -$OPT_LEVEL $MACROS $FLAGS $FILES -o $OUT_FILE -I$INCLUDE_DIR
+    (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $CC_FLAGS $FILES -o $OUT_FILE -I$INCLUDE_DIR)
 }
 
 build_objs $1 &&

@@ -227,7 +227,7 @@ void __cgn_scheduler(void) {
                 // Won't loop after loading new ctx; increment thread position for next access
                 // to scheduler
                 ++sched_thread_pos;
-                        
+
                 __cgn_loadctx(&staged_thread->ctx);
             }
 

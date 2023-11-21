@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "testmain",
+            "name": "basic_usage",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/a.out",
+            "program": "${workspaceFolder}/target/tests/basic_usage",
             "cwd": "${workspaceFolder}"
           }
     ]
