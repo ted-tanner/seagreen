@@ -297,7 +297,7 @@ __CGNThread *__cgn_add_thread(uint64_t *id, void **stack) {
 void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos) {
     __CGNThread *t = &block->threads[pos];
 
-    memset(t, 0, sizeof(__CGNThread));
+    *t = (__CGNThread){0};
 
     --threadlist.thread_count;
     --block->used_thread_count;
@@ -310,30 +310,3 @@ inline __CGNThread *__cgn_get_curr_thread(void) {
 inline __CGNThread *__cgn_get_main_thread(void) {
     return main_thread;
 }
-
-#ifdef CGN_TEST
-
-#include "cgntest/test.h"
-
-static TEST_RESULT test_add_thread(void) {
-    // TODO
-    cgn_init_rt();
-    add_thread(0, 0);
-    return TEST_PASS;
-}
-
-static TEST_RESULT test_remove_thread(void) {
-    // TODO
-    cgn_init_rt();
-    remove_thread(0);
-    return TEST_PASS;
-}
-
-void register_seagreen_tests() {
-    CgnTestSet *set = new_test_set(__FILE__);
-
-    register_test(set, test_add_thread);
-    register_test(set, test_remove_thread);
-}
-
-#endif

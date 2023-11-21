@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(__unix__) || defined(__APPLE__)
 #include <unistd.h>
@@ -556,11 +555,6 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 handle;							\
             }))
-
-#ifdef CGN_TEST
-#include "cgntest/test.h"
-void register_seagreen_tests();
-#endif
 
 #define SEAGREEN_H
 #endif
