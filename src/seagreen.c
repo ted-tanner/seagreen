@@ -197,7 +197,7 @@ void __cgn_scheduler(void) {
             for (; sched_thread_pos < __CGN_THREAD_BLOCK_SIZE; ++sched_thread_pos) {
                 __CGNThread *staged_thread = &sched_block->threads[sched_thread_pos];
 
-                if (!staged_thread->in_use || staged_thread == main_thread) {
+                if (!staged_thread->in_use) {
                     continue;
                 }
 
