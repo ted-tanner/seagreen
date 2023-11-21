@@ -177,7 +177,7 @@ void seagreen_free_rt(void) {
 
 void async_yield(void) {
     __CGNThread *t = __cgn_get_curr_thread();
-    __cgn_savectx(&t->ctx);
+    __cgn_savectx(&t->ctx, t);
 
     _Bool temp_yield_toggle = t->yield_toggle;
     t->yield_toggle = !t->yield_toggle;
@@ -228,7 +228,7 @@ void __cgn_scheduler(void) {
                 // to scheduler
                 ++sched_thread_pos;
 
-                __cgn_loadctx(&staged_thread->ctx);
+                __cgn_loadctx(&staged_thread->ctx, staged_thread);
             }
 
             sched_thread_pos = 0;

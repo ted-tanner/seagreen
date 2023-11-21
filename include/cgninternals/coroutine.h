@@ -74,8 +74,10 @@ typedef struct __CGNThreadCtx_ {
 
 #endif
 
-extern __attribute__((noinline)) void __cgn_loadctx(__CGNThreadCtx *ctx);
-extern __attribute__((noinline)) void __cgn_savectx(__CGNThreadCtx *ctx);
+// Both of these functions return the thread pointer such that it is available when
+// the thread is resumed and the stack may have changed.
+extern __attribute__((noinline)) void *__cgn_loadctx(__CGNThreadCtx *ctx, void *thread);
+extern __attribute__((noinline)) void *__cgn_savectx(__CGNThreadCtx *ctx, void *thread);
 
 void __cgn_set_stack_ptr(__CGNThreadCtx *ctx, void *ptr);
 

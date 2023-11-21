@@ -19,6 +19,9 @@ __CGN_SAVECTX_NAME:
         movq %r15, 40(%rdi)
         movq %rbx, 48(%rdi)
 
+        // Return the thread pointer
+        movq %rax, %rsi
+
         ret
 
 #elif defined(__x86_64__) && defined(__WIN64__)
@@ -34,6 +37,9 @@ __CGN_SAVECTX_NAME:
         movq %r15, 40(%rcx)
         movq %rbx, 48(%rcx)
         movq %rdi, 56(%rcx)
+
+        // Return the thread pointer
+        movq %rax, %rdx
 
         ret
         
@@ -57,6 +63,9 @@ __CGN_SAVECTX_NAME:
         str x28, [x0, 88]
         str x29, [x0, 96]
 
+        // Return the thread pointer
+        mov x0, x1
+
         ret
 
 #elif defined(__riscv__)
@@ -78,6 +87,9 @@ __CGN_SAVECTX_NAME:
         sd s9, 88(a0)
         sd s10, 96(a0)
         sd s11, 104(a0)
+
+        // Return the thread pointer
+        mv a0, a1
 
         ret
 

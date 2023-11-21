@@ -190,7 +190,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
 		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -212,7 +214,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
 		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -234,7 +238,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -256,7 +262,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -278,7 +286,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
 		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -300,7 +310,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -322,7 +334,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
 		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -344,7 +358,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -366,7 +382,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -388,7 +406,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -410,7 +430,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -432,7 +454,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -454,7 +478,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -476,7 +502,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
 		void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
@@ -498,7 +526,9 @@ __CGNThread *__cgn_get_main_thread(void);
 									\
                 void *stack;						\
                 __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                __cgn_savectx(&t->ctx);					\
+		/* Must reassign t so it is available with new stack */	\
+		/* when execution jumps back */				\
+                t = __cgn_savectx(&t->ctx, t);				\
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;			\
                 t->run_toggle = !t->run_toggle;				\
