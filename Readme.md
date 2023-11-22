@@ -28,12 +28,11 @@ If ye don' heed these warnin's, ye may be squacked at by Seggie the SegFault par
 
 ## TODO
 
+* Can `async_yield()` be made a nop when called without `async_run()`?
 * Rename variables local to macros (is this necessary?)
 * After same stack is used for a new thread 128 times, mmap and munmap (or VirtualAlloc with MEM_RESET)
 * If a thread took longer than 25 microseconds to execute, skip scheduling for the next *n* iterations, where *n* = min(1 + floor(microseconds / 100), 5)
 * Use stdint types in macros rather than int/long/short/etc
 * Multithreaded scheduler (in a separate header).
   - Linked list for threads that is synchronized using something similar to Linux's RCU.
-* Blocking thread pool for making synchronous functions async (sort of)
-* Get running on xv6 (will need to implement a simple `malloc()` and `free()`)
-* Automated tests
+  - Blocking thread pool for making synchronous functions async (sort of)
