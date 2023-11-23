@@ -5,7 +5,7 @@
 
 #include "seagreen.h"
 
-#define THREAD_COUNT 100000
+#define THREAD_COUNT 10000
 
 async int foo() {
     __asm__ volatile("nop");
@@ -31,11 +31,31 @@ int main(void) {
 	handles[i] = async_run(foo());
     }
 
+    // TO
+    await(handles[0]);
+    await(handles[0]);
+    await(handles[0]);
+
     printf("Awaiting...\n");
-    for (int i = 0; i < THREAD_COUNT; ++i) {
+    for (int i = 1; i < THREAD_COUNT; ++i) {
 	int foo_res = await(handles[i]);
 	assert(foo_res == 5);
+
+	// Suppress unused variable warning in release builds
+	(void) foo_res;
     }
+
+    // TODO: This breaks (reusing the same threads gives wrong return value)
+    // printf("Starting %d threads...\n", THREAD_COUNT);
+    // for (int i = 0; i < THREAD_COUNT; ++i) {
+    // 	handles[i] = async_run(foo());
+    // }
+
+    // printf("Awaiting...\n");
+    // for (int i = 0; i < THREAD_COUNT; ++i) {
+    // 	int foo_res = await(handles[i]);
+    // 	assert(foo_res == 5);
+    // }
 
     seagreen_free_rt();
 

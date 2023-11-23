@@ -31,6 +31,7 @@ static char *state_to_name(__CGNThreadState state) {
 void print_threads(void) {
     uint64_t i = 0;
     printf("\n------------------------------------\n");
+    printf("%llu threads:\n\n", threadlist.thread_count);
     for (__CGNThreadBlock *block = threadlist.head; block; block = block->next, ++i) {
         for (uint64_t pos = 0; pos < __CGN_THREAD_BLOCK_SIZE; ++pos) {
             uint64_t id = i * __CGN_THREAD_BLOCK_SIZE + pos;
@@ -53,17 +54,20 @@ void print_threads(void) {
 
 #endif
 
-// TODO: Still need to handle
 static __CGNThreadBlock *add_block(void) {
     uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + pagesize;
     uint64_t alloc_size = stack_plus_guard_size * __CGN_THREAD_BLOCK_SIZE;
 
 #if !defined(_WIN32)
-    // TODO: Get real page size
-
     // Map stack + guard page together to assure that the guard page can be mapped at the
     // end of the stack. Will change PROT_NONE to PROT_READ | PROT_WRITE with mprotect().
-    void *stacks = mmap(0, alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+
+    // MAP_STACK is a BSD-specific flag
+#ifndef MAP_STACK
+#define MAP_STACK 0
+#endif
+    
+    void *stacks = mmap(0, alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK, -1, 0);
     __cgn_check_malloc(stacks);
 
     for (uint64_t i = 0; i < __CGN_THREAD_BLOCK_SIZE; ++i) {
@@ -211,7 +215,13 @@ void __cgn_scheduler(void) {
                     }
                 }
 
-                if (staged_thread->state != __CGN_THREAD_STATE_READY) {
+		// Including RUNNING here allows a thread to run when it is the only thread
+		// that isn't WAITING. This will only happen if the scheduler has checked
+		// every other thread and found them to be WAITING.
+		_Bool runnable = staged_thread->state == __CGN_THREAD_STATE_READY
+		    || staged_thread->state == __CGN_THREAD_STATE_RUNNING;
+
+                if (!runnable) {
                     continue;
                 }
 

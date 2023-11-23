@@ -47,9 +47,9 @@ typedef void *voidptr;
 // untouched
 #define __CGN_STACK_SIZE 1024 * 1024 * 2 // 2 MB
 
-// Must be a power of 2 greater than or equal to 64
-#define __CGN_THREAD_BLOCK_SIZE 512
-#define __CGN_THREAD_BLOCK_DESCRIPTOR_COUNT __CGN_THREAD_BLOCK_SIZE / 64
+// After some testing, it appears that 1024 is the sweet spot. 2048 doesn't
+// speed things up under load, and 512 is slower than 1024.
+#define __CGN_THREAD_BLOCK_SIZE 1024
 
 #define __cgn_define_handle_type(T)		\
     typedef struct _CGNThreadHandle_##T {	\
@@ -141,18 +141,20 @@ __CGNThread *__cgn_get_main_thread(void);
                      __CGNThreadBlock *block = __cgn_get_block((handle).id); \
                                                                         \
                      __CGNThread *t = &block->threads[pos];		\
-                     t->awaiting_thread_count++;                        \
+		     if (t->in_use) {					\
+			 t->awaiting_thread_count++;			\
                                                                         \
-                     /* Because thread is waiting, the curr thread */	\
-                     /* won't be scheduled until awaited thread has */	\
-                     /* finished its execution */			\
-                     async_yield();					\
-                     t_curr->state = __CGN_THREAD_STATE_RUNNING;        \
-                     t_curr->yield_toggle = 0;				\
-                                                                        \
-                     if (!t->awaiting_thread_count) {			\
-                         __cgn_remove_thread(block, pos);		\
-                     }							\
+			 /* Because thread is waiting, the curr thread */ \
+			 /* won't be scheduled until awaited thread has */ \
+			 /* finished its execution */			\
+			 async_yield();					\
+			 t_curr->state = __CGN_THREAD_STATE_RUNNING;	\
+			 t_curr->yield_toggle = 0;			\
+			 						\
+			 if (!t->awaiting_thread_count) {		\
+			     __cgn_remove_thread(block, pos);		\
+			 }						\
+		     }							\
                                                                         \
                      (void)0;						\
                  }),							\
@@ -165,21 +167,24 @@ __CGNThread *__cgn_get_main_thread(void);
                      __CGNThreadBlock *block = __cgn_get_block((handle).id); \
                                                                         \
                      __CGNThread *t = &block->threads[pos];		\
-                     t->awaiting_thread_count++;                        \
+		     uint64_t return_val = 0;				\
+		     if (t->in_use) {					\
+			 t->awaiting_thread_count++;			\
                                                                         \
-                     /* Because thread is waiting, the curr thread */	\
-                     /* won't be scheduled until awaited thread has */	\
-                     /* finished its execution */			\
-                     async_yield();					\
-                     t_curr->state = __CGN_THREAD_STATE_RUNNING;        \
-                     t_curr->yield_toggle = 0;				\
+			 /* Because thread is waiting, the curr thread */ \
+			 /* won't be scheduled until awaited thread has */ \
+			 /* finished its execution */			\
+			 async_yield();					\
+			 t_curr->state = __CGN_THREAD_STATE_RUNNING;	\
+			 t_curr->yield_toggle = 0;			\
                                                                         \
-                     uint64_t return_val = block->threads[pos].return_val; \
-                     if (!t->awaiting_thread_count) {			\
-                         __cgn_remove_thread(block, pos);		\
-                     }							\
-                                                                        \
-                     return_val;                                        \
+			 return_val = block->threads[pos].return_val;	\
+			 if (!t->awaiting_thread_count) {		\
+			     __cgn_remove_thread(block, pos);		\
+			 }						\
+		     }							\
+			 						\
+		     return_val;					\
                  }))
 
 #define async_run(Fn)							\

@@ -4,10 +4,14 @@ if [[ $CC = "" ]]; then
     CC=clang
 fi
 
+IS_RELEASE=false
+
 if [[ $OPT_LEVEL = "" ]]; then
     if [[ $1 = "release" ]]; then
+        IS_RELEASE=true
         OPT_LEVEL=O3
     elif [[ $1 = "test" && $2 = "release" ]]; then
+        IS_RELEASE=true
         OPT_LEVEL=O3
     else
         OPT_LEVEL=O0
@@ -15,8 +19,13 @@ if [[ $OPT_LEVEL = "" ]]; then
 fi
 
 if [[ $CC_FLAGS = "" ]]; then
-    CC_FLAGS="-Wall -Wextra -Werror -std=c11 -g"
+    if [[ $IS_RELEASE = true ]]; then
+        CC_FLAGS="-Wall -Wextra -std=c11 -DNDEBUG"
+    else
+        CC_FLAGS="-Wall -Wextra -std=c11 -g"
+    fi
 fi
+
 
 OUT_DIR=./target
 LIB_NAME=seagreenlib
@@ -52,7 +61,7 @@ function build_objs {
         FNAME=$(basename $FILE)
         FILE_NO_EXT="${FNAME%.*}"
         OBJ=" $OUT/$FILE_NO_EXT.o"
-        (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $CC_FLAGS -c $FILE -o $OBJ -I$INCLUDE_DIR)
+        (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $CC_FLAGS -c $FILE -o $OBJ -I$INCLUDE_DIR) || exit 1
 
         if [[ $? -ne 0 ]]; then
             exit 1
@@ -90,8 +99,22 @@ if [[ $1 = "test" ]]; then
         build_test $FILE
     done &&
 
+    SUCCESS_COUNT=0
+    TEST_COUNT=0
+
     for TEST_NAME in $TEST_NAMES; do
         echo "\n----- Running test: $TEST_NAME -----\n"
         time $OUT_DIR/tests/$TEST_NAME
+
+        if [[ $? -eq 0 ]]; then
+            SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+        fi
+
+        TEST_COUNT=$((TEST_COUNT + 1))
     done
+
+    echo "\n\n------------------"
+    echo "PASSED: $SUCCESS_COUNT test(s)"
+    echo "FAILED: $((TEST_COUNT-SUCCESS_COUNT)) test(s)"
+    echo "------------------"
 fi
