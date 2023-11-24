@@ -23,12 +23,12 @@ int main(void) {
     printf("Initializing runtime...\n");
     seagreen_init_rt();
 
-    CGNThreadHandle_int *handles = (CGNThreadHandle_int *)
-	malloc(sizeof(CGNThreadHandle_int) * THREAD_COUNT);
+    CGNThreadHandle_int *handles =
+        (CGNThreadHandle_int *)malloc(sizeof(CGNThreadHandle_int) * THREAD_COUNT);
 
     printf("Starting %d threads...\n", THREAD_COUNT);
     for (int i = 0; i < THREAD_COUNT; ++i) {
-	handles[i] = async_run(foo());
+        handles[i] = async_run(foo());
     }
 
     // TO
@@ -38,11 +38,11 @@ int main(void) {
 
     printf("Awaiting...\n");
     for (int i = 1; i < THREAD_COUNT; ++i) {
-	int foo_res = await(handles[i]);
-	assert(foo_res == 5);
+        int foo_res = await(handles[i]);
+        assert(foo_res == 5);
 
-	// Suppress unused variable warning in release builds
-	(void) foo_res;
+        // Suppress unused variable warning in release builds
+        (void)foo_res;
     }
 
     // TODO: This breaks (reusing the same threads gives wrong return value)

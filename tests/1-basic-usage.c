@@ -67,7 +67,7 @@ int main(void) {
     assert(bar_res == 8);
 
     for (int i = 0; i < 8; ++i) {
-	assert(running_func_is_foo[i] == i % 2);
+        assert(running_func_is_foo[i] == i % 2);
     }
 
     seagreen_free_rt();
@@ -75,6 +75,7 @@ int main(void) {
     return 0;
 }
 
+// TODO: Test with stack exist=ing before seagreen_init_rt()
 // TODO: Test with a bunch of threads
 // TODO: Test calling async within async
 // TODO: Test calling async from sync function called from within async

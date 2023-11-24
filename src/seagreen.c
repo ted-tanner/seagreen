@@ -32,20 +32,18 @@ void print_threads(void) {
     uint64_t i = 0;
     printf("\n------------------------------------\n");
     printf("%llu threads:\n\n", threadlist.thread_count);
-    for (__CGNThreadBlock *block = threadlist.head; block; block = block->next, ++i) {
+    for (__CGNThreadBlock *block = threadlist.head; block;
+         block = block->next, ++i) {
         for (uint64_t pos = 0; pos < __CGN_THREAD_BLOCK_SIZE; ++pos) {
             uint64_t id = i * __CGN_THREAD_BLOCK_SIZE + pos;
             __CGNThread *thread = &block->threads[pos];
 
             if (thread->in_use) {
                 __CGNThread *thread = &block->threads[pos];
-                printf("thread %llu:\n\tstate: %s\n\tawaiting: %llu\n\tawait count: %llu\n\treturn_val as int: %d\n\tptr: %p\n\n",
-                       id,
-                       state_to_name(thread->state),
-                       thread->awaited_thread_id,
-                       thread->awaiting_thread_count,
-                       (int) thread->return_val,
-                       thread);
+                printf("thread %llu:\n\tstate: %s\n\tawaiting: %llu\n\tawait count: "
+                       "%llu\n\treturn_val as int: %d\n\tptr: %p\n\n",
+                       id, state_to_name(thread->state), thread->awaited_thread_id,
+                       thread->awaiting_thread_count, (int)thread->return_val, thread);
             }
         }
     }
@@ -59,15 +57,17 @@ static __CGNThreadBlock *add_block(void) {
     uint64_t alloc_size = stack_plus_guard_size * __CGN_THREAD_BLOCK_SIZE;
 
 #if !defined(_WIN32)
-    // Map stack + guard page together to assure that the guard page can be mapped at the
-    // end of the stack. Will change PROT_NONE to PROT_READ | PROT_WRITE with mprotect().
+    // Map stack + guard page together to assure that the guard page can be mapped
+    // at the end of the stack. Will change PROT_NONE to PROT_READ | PROT_WRITE
+    // with mprotect().
 
     // MAP_STACK is a BSD-specific flag
 #ifndef MAP_STACK
 #define MAP_STACK 0
 #endif
-    
-    void *stacks = mmap(0, alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK, -1, 0);
+
+    void *stacks =
+        mmap(0, alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK, -1, 0);
     __cgn_check_malloc(stacks);
 
     for (uint64_t i = 0; i < __CGN_THREAD_BLOCK_SIZE; ++i) {
@@ -77,7 +77,8 @@ static __CGNThreadBlock *add_block(void) {
         mprotect(stacks + offset, __CGN_STACK_SIZE, PROT_READ | PROT_WRITE);
     }
 #else
-    void *stacks = VirtualAlloc(0, alloc_size, MEM_RESERVE | MEM_COMMIT, PAGE_GUARD);
+    void *stacks =
+        VirtualAlloc(0, alloc_size, MEM_RESERVE | MEM_COMMIT, PAGE_GUARD);
     __cgn_check_malloc(stacks);
 
     for (uint64_t i = 0; i < __CGN_THREAD_BLOCK_SIZE; ++i) {
@@ -88,7 +89,8 @@ static __CGNThreadBlock *add_block(void) {
     }
 #endif
 
-    __CGNThreadBlock *block = (__CGNThreadBlock *)calloc(1, sizeof(__CGNThreadBlock));
+    __CGNThreadBlock *block =
+        (__CGNThreadBlock *)calloc(1, sizeof(__CGNThreadBlock));
     __cgn_check_malloc(block);
 
     if (!threadlist.tail) {
@@ -206,7 +208,8 @@ void __cgn_scheduler(void) {
                 }
 
                 if (staged_thread->state == __CGN_THREAD_STATE_WAITING) {
-                    __CGNThread *awaited_thread = __cgn_get_thread(staged_thread->awaited_thread_id);
+                    __CGNThread *awaited_thread =
+                        __cgn_get_thread(staged_thread->awaited_thread_id);
                     if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
                         awaited_thread->awaiting_thread_count--;
                         staged_thread->state = __CGN_THREAD_STATE_READY;
@@ -215,11 +218,11 @@ void __cgn_scheduler(void) {
                     }
                 }
 
-		// Including RUNNING here allows a thread to run when it is the only thread
-		// that isn't WAITING. This will only happen if the scheduler has checked
-		// every other thread and found them to be WAITING.
-		_Bool runnable = staged_thread->state == __CGN_THREAD_STATE_READY
-		    || staged_thread->state == __CGN_THREAD_STATE_RUNNING;
+                // Including RUNNING here allows a thread to run when it is the only
+                // thread that isn't WAITING. This will only happen if the scheduler has
+                // checked every other thread and found them to be WAITING.
+                _Bool runnable = staged_thread->state == __CGN_THREAD_STATE_READY ||
+                    staged_thread->state == __CGN_THREAD_STATE_RUNNING;
 
                 if (!runnable) {
                     continue;
@@ -234,8 +237,8 @@ void __cgn_scheduler(void) {
 
                 staged_thread->state = __CGN_THREAD_STATE_RUNNING;
 
-                // Won't loop after loading new ctx; increment thread position for next access
-                // to scheduler
+                // Won't loop after loading new ctx; increment thread position for next
+                // access to scheduler
                 ++sched_thread_pos;
 
                 __cgn_loadctx(&staged_thread->ctx, staged_thread);
@@ -255,7 +258,8 @@ inline __CGNThreadBlock *__cgn_get_block(uint64_t id) {
     uint64_t block_pos = id / __CGN_THREAD_BLOCK_SIZE;
     if (block_pos > threadlist.block_count / 2) {
         block = threadlist.tail;
-        for (uint64_t i = threadlist.block_count - 1; i > block_pos; --i, block = block->prev);
+        for (uint64_t i = threadlist.block_count - 1; i > block_pos;
+             --i, block = block->prev);
     } else {
         block = threadlist.head;
         for (uint64_t i = 0; i < block_pos; ++i, block = block->next);
@@ -300,7 +304,8 @@ __CGNThread *__cgn_add_thread(uint64_t *id, void **stack) {
     ++block->used_thread_count;
 
     *id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
-    *stack = block->stacks + pos * (__CGN_STACK_SIZE + pagesize) + __CGN_STACK_SIZE;
+    *stack =
+        block->stacks + pos * (__CGN_STACK_SIZE + pagesize) + __CGN_STACK_SIZE;
 
     return t;
 }
@@ -314,10 +319,6 @@ void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos) {
     --block->used_thread_count;
 }
 
-inline __CGNThread *__cgn_get_curr_thread(void) {
-    return curr_thread;
-}
+inline __CGNThread *__cgn_get_curr_thread(void) { return curr_thread; }
 
-inline __CGNThread *__cgn_get_main_thread(void) {
-    return main_thread;
-}
+inline __CGNThread *__cgn_get_main_thread(void) { return main_thread; }
