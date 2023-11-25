@@ -1,7 +1,7 @@
 #include "seagreen.h"
 #include <stdint.h>
 
-int pagesize = 0;
+_Thread_local int pagesize = 0;
 
 _Thread_local __CGNThreadList threadlist = {0};
 
@@ -184,7 +184,7 @@ void seagreen_free_rt(void) {
 
 void async_yield(void) {
     __CGNThread *t = __cgn_get_curr_thread();
-    __cgn_savectx(&t->ctx, t);
+    __cgn_savectx(&t->ctx);
 
     _Bool temp_yield_toggle = t->yield_toggle;
     t->yield_toggle = !t->yield_toggle;
@@ -242,7 +242,7 @@ void __cgn_scheduler(void) {
                 // access to scheduler
                 ++sched_thread_pos;
 
-                __cgn_loadctx(&staged_thread->ctx, staged_thread);
+                __cgn_loadctx(&staged_thread->ctx);
             }
 
             sched_thread_pos = 0;
@@ -321,10 +321,10 @@ void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos) {
     --block->used_thread_count;
 }
 
-__attribute__((always_inline)) __CGNThread *__cgn_get_curr_thread(void) {
+inline __CGNThread *__cgn_get_curr_thread(void) {
     return curr_thread;
 }
 
-__attribute__((always_inline)) __CGNThread *__cgn_get_main_thread(void) {
+inline __CGNThread *__cgn_get_main_thread(void) {
     return main_thread;
 }

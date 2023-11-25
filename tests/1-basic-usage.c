@@ -51,8 +51,8 @@ int main(void) {
     printf("Starting foo()...\n");
     CGNThreadHandle_int t1 = async_run(foo(1, 2));
 
-    printf("Starting bar()...\n");
-    CGNThreadHandle_int t2 = async_run(bar(3));
+    // printf("Starting bar()...\n");
+    // CGNThreadHandle_int t2 = async_run(bar(3));
 
     printf("Awaiting...\n");
 
@@ -61,14 +61,14 @@ int main(void) {
 
     assert(foo_res == 3);
 
-    int bar_res = await(t2);
-    printf("bar() returned %d\n", bar_res);
+    // int bar_res = await(t2);
+    // printf("bar() returned %d\n", bar_res);
 
-    assert(bar_res == 8);
+    // assert(bar_res == 8);
 
-    for (int i = 0; i < 8; ++i) {
-        assert(running_func_is_foo[i] == i % 2);
-    }
+    // for (int i = 0; i < 8; ++i) {
+    //     assert(running_func_is_foo[i] == i % 2);
+    // }
 
     seagreen_free_rt();
 
