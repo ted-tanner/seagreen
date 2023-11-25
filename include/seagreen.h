@@ -91,9 +91,11 @@ typedef struct __CGNThread_ {
     __CGNThreadState state;
 
     _Bool yield_toggle;
-    _Bool run_toggle;
+    _Bool should_run;
 
     _Bool in_use;
+
+    uint64_t scratch_space[3];
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -199,10 +201,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle)  {                                 \
+                if (temp_should_run)  {                                 \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -221,10 +223,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -243,10 +245,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -265,10 +267,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -287,10 +289,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -302,25 +304,42 @@ __CGNThread *__cgn_get_main_thread(void);
                 handle;                                                 \
             }),                                                         \
         int: ({                                                         \
-                void *t_stack;                                          \
-                uint64_t t_id;                                          \
-                                                                        \
-                __CGNThread *t = __cgn_add_thread(&t_id, &t_stack);     \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
-                                                                        \
-                if (temp_run_toggle) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
+                /* Scope these vars so nothing needs to come off the */ \
+                /* stack after __cgn_savectx() */                       \
+                {                                                       \
                     __CGNThread *curr_t = __cgn_get_curr_thread();      \
+                                                                        \
+                    void *t_stack;                                      \
+                    uint64_t t_id;                                      \
+                    __CGNThread *t = __cgn_add_thread(&t_id, &t_stack); \
+                                                                        \
+                    t->should_run = 1;                                  \
+                    curr_t->should_run = 0;                             \
+                                                                        \
+                    curr_t->scratch_space[0] = (uint64_t) t;            \
+                    curr_t->scratch_space[1] = (uint64_t) t_stack;      \
+                    curr_t->scratch_space[2] = t_id;                    \
+                                                                        \
+                    __cgn_savectx(&t->ctx);                             \
+                }                                                       \
+                                                                        \
+                __CGNThread *curr_t = __cgn_get_curr_thread();          \
+                                                                        \
+                if (curr_t->should_run) {                               \
+                    uint64_t retval = (uint64_t) Fn;                    \
                     curr_t->return_val = retval;                        \
                     curr_t->state = __CGN_THREAD_STATE_DONE;            \
                     __cgn_scheduler();                                  \
+                    /* This should never be reached */                  \
+                    assert(0);                                          \
                 } else {                                                \
+                    __CGNThread *t =                                    \
+                        (__CGNThread *)curr_t->scratch_space[0];        \
+                    void *t_stack = (void *)curr_t->scratch_space[1];   \
                     t->ctx.sp = (uint64_t) t_stack;                     \
                 }                                                       \
                                                                         \
+                uint64_t t_id = curr_t->scratch_space[2];               \
                 CGNThreadHandle_int handle = {                          \
                     .id = t_id,                                         \
                 };                                                      \
@@ -335,10 +354,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -357,10 +376,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -379,10 +398,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -401,10 +420,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -423,10 +442,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -445,10 +464,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -467,10 +486,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -489,10 +508,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->return_val = retval;                   \
@@ -511,10 +530,10 @@ __CGNThread *__cgn_get_main_thread(void);
                                                                         \
                 __cgn_savectx(&t->ctx);                                 \
                                                                         \
-                _Bool temp_run_toggle = t->run_toggle;                  \
-                t->run_toggle = !t->run_toggle;                         \
+                _Bool temp_should_run = t->should_run;                  \
+                t->should_run = !t->should_run;                         \
                                                                         \
-                if (temp_run_toggle) {                                  \
+                if (temp_should_run) {                                  \
                     Fn;                                                 \
                     __CGNThread *curr_thread = __cgn_get_curr_thread(); \
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \

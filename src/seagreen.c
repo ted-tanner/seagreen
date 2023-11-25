@@ -130,7 +130,6 @@ void seagreen_init_rt(void) {
 
     main_thread = &threadlist.head->threads[0];
     main_thread->state = __CGN_THREAD_STATE_RUNNING;
-    main_thread->run_toggle = 0;
     main_thread->yield_toggle = 1;
 
     curr_thread = main_thread;
@@ -298,7 +297,6 @@ __CGNThread *__cgn_add_thread(uint64_t *id, void **stack) {
     t->in_use = 1;
     t->state = __CGN_THREAD_STATE_READY;
 
-    t->run_toggle = 0;
     t->yield_toggle = 1;
 
     ++threadlist.thread_count;
