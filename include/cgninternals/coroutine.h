@@ -79,7 +79,5 @@ typedef struct __CGNThreadCtx_ {
 extern __attribute__((noinline)) void *__cgn_loadctx(__CGNThreadCtx *ctx, void *thread);
 extern __attribute__((noinline)) void *__cgn_savectx(__CGNThreadCtx *ctx, void *thread);
 
-void __cgn_set_stack_ptr(__CGNThreadCtx *ctx, void *ptr);
-
 #define CGN_COROUTINE_H
 #endif

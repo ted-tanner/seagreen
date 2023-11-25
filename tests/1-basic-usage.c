@@ -75,6 +75,8 @@ int main(void) {
     return 0;
 }
 
+// TODO: Test calling func with many args (bother async_run and regular call)
+// TODO: Test with recursive function
 // TODO: Test with stack exist=ing before seagreen_init_rt()
 // TODO: Test with a bunch of threads
 // TODO: Test calling async within async

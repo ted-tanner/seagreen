@@ -1,4 +1,5 @@
 #include "seagreen.h"
+#include <stdint.h>
 
 int pagesize = 0;
 
@@ -61,7 +62,7 @@ static __CGNThreadBlock *add_block(void) {
     // at the end of the stack. Will change PROT_NONE to PROT_READ | PROT_WRITE
     // with mprotect().
 
-    // MAP_STACK is a BSD-specific flag
+    // MAP_STACK doesn't exist on macOS
 #ifndef MAP_STACK
 #define MAP_STACK 0
 #endif
@@ -304,8 +305,9 @@ __CGNThread *__cgn_add_thread(uint64_t *id, void **stack) {
     ++block->used_thread_count;
 
     *id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
-    *stack =
-        block->stacks + pos * (__CGN_STACK_SIZE + pagesize) + __CGN_STACK_SIZE;
+
+    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + pagesize;
+    *stack = block->stacks + (pos + 1) * stack_plus_guard_size;
 
     return t;
 }
@@ -319,6 +321,10 @@ void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos) {
     --block->used_thread_count;
 }
 
-inline __CGNThread *__cgn_get_curr_thread(void) { return curr_thread; }
+__attribute__((always_inline)) __CGNThread *__cgn_get_curr_thread(void) {
+    return curr_thread;
+}
 
-inline __CGNThread *__cgn_get_main_thread(void) { return main_thread; }
+__attribute__((always_inline)) __CGNThread *__cgn_get_main_thread(void) {
+    return main_thread;
+}

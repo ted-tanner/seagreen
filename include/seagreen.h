@@ -1,3 +1,4 @@
+#include <_types/_uint64_t.h>
 #ifndef SEAGREEN_H
 
 #if !defined __GNUC__ && !defined __clang__
@@ -93,6 +94,11 @@ typedef struct __CGNThread_ {
     _Bool run_toggle;
 
     _Bool in_use;
+
+    // TODO
+    uint64_t scratch_space[3];
+    struct __CGNThread_ *self;
+    uint64_t id;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -209,7 +215,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -233,7 +238,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -257,7 +261,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -281,7 +284,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -305,32 +307,45 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
             }),                                                         \
         int: ({                                                         \
-                CGNThreadHandle_int handle;                             \
+                void *new_thread_stack;                                 \
+                uint64_t new_thread_id;                                \
                                                                         \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
+                __CGNThread *new_thread =                               \
+                    __cgn_add_thread(&new_thread_id,                    \
+                                     &new_thread_stack);                \
+                                                                        \
+                new_thread->scratch_space[0] = new_thread_id;           \
+                new_thread->scratch_space[1] = (uint64_t) new_thread_stack; \
+                                                                        \
                 /* Must reassign t so it is available with new stack */	\
                 /* when execution jumps back */                         \
-                t = __cgn_savectx(&t->ctx, t);                          \
+                __CGNThread *t =                                        \
+                    __cgn_savectx(&new_thread->ctx,                     \
+                                  new_thread);                          \
                                                                         \
                 _Bool temp_run_toggle = t->run_toggle;                  \
                 t->run_toggle = !t->run_toggle;                         \
                                                                         \
                 if (temp_run_toggle) {                                  \
                     uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread();	\
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
+                    __CGNThread *curr_t = __cgn_get_curr_thread();          \
+                    curr_t->return_val = retval;                            \
+                    curr_t->state = __CGN_THREAD_STATE_DONE;                \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
+                    void *t_stack = (void *)t->scratch_space[1];        \
+                    t->ctx.sp = (uint64_t) t_stack;                     \
                 }                                                       \
+                                                                        \
+                uint64_t new_t_id = t->scratch_space[0];                \
+                CGNThreadHandle_int handle = {                          \
+                    .id = new_t_id,                                     \
+                };                                                      \
                                                                         \
                 handle;                                                 \
             }),                                                         \
@@ -353,7 +368,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -377,7 +391,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -401,7 +414,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -425,7 +437,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -449,7 +460,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -473,7 +483,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -497,7 +506,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -521,7 +529,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
@@ -544,7 +551,6 @@ __CGNThread *__cgn_get_main_thread(void);
                     curr_thread->state = __CGN_THREAD_STATE_DONE;       \
                     __cgn_scheduler();                                  \
                 } else {                                                \
-                    __cgn_set_stack_ptr(&t->ctx, stack);                \
                 }                                                       \
                                                                         \
                 handle;                                                 \
