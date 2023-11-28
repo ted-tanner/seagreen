@@ -14,13 +14,13 @@ if [[ $OPT_LEVEL = "" ]]; then
         IS_RELEASE=true
         OPT_LEVEL=O3
     else
-        OPT_LEVEL=O0
+        OPT_LEVEL=O1
     fi
 fi
 
 if [[ $CC_FLAGS = "" ]]; then
     if [[ $IS_RELEASE = true ]]; then
-        CC_FLAGS="-Wall -Wextra -std=c11 -DNDEBUG"
+        CC_FLAGS="-Wall -Wextra -std=c11 -DNDEBUG -fverbose-asm"
     else
         CC_FLAGS="-Wall -Wextra -std=c11 -g"
     fi
@@ -102,8 +102,8 @@ if [[ $1 = "test" ]]; then
         build_test $FILE
     done &&
 
-    SUCCESS_COUNT=0
-    TEST_COUNT=0
+    SUCCESS_COUNT=0 &&
+    TEST_COUNT=0 &&
 
     for TEST_NAME in $TEST_NAMES; do
         echo "\n----- Running test: $TEST_NAME -----\n"
@@ -114,10 +114,10 @@ if [[ $1 = "test" ]]; then
         fi
 
         TEST_COUNT=$((TEST_COUNT + 1))
-    done
+    done &&
 
-    echo "\n\n------------------"
-    echo "PASSED: $SUCCESS_COUNT test(s)"
-    echo "FAILED: $((TEST_COUNT-SUCCESS_COUNT)) test(s)"
+    echo "\n\n------------------" &&
+    echo "PASSED: $SUCCESS_COUNT test(s)" &&
+    echo "FAILED: $((TEST_COUNT-SUCCESS_COUNT)) test(s)" &&
     echo "------------------"
 fi

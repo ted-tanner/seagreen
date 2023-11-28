@@ -1,16 +1,16 @@
 #include "seagreen.h"
 #include <stdint.h>
 
-_Thread_local int pagesize = 0;
+_Thread_local int __cgn_pagesize = 0;
 
-_Thread_local __CGNThreadList threadlist = {0};
+_Thread_local __CGNThreadList __cgn_threadlist = {0};
 
-_Thread_local __CGNThread *curr_thread = 0;
-_Thread_local __CGNThread *main_thread = 0;
+_Thread_local __CGNThread *__cgn_curr_thread = 0;
+_Thread_local __CGNThread *__cgn_main_thread = 0;
 
-_Thread_local __CGNThreadBlock *sched_block = 0;
-_Thread_local uint64_t sched_block_pos = 0;
-_Thread_local uint64_t sched_thread_pos = 0;
+_Thread_local __CGNThreadBlock *__cgn_sched_block = 0;
+_Thread_local uint64_t __cgn_sched_block_pos = 0;
+_Thread_local uint64_t __cgn_sched_thread_pos = 0;
 
 #ifdef CGN_DEBUG
 
@@ -32,8 +32,8 @@ static char *state_to_name(__CGNThreadState state) {
 void print_threads(void) {
     uint64_t i = 0;
     printf("\n------------------------------------\n");
-    printf("%llu threads:\n\n", threadlist.thread_count);
-    for (__CGNThreadBlock *block = threadlist.head; block;
+    printf("%llu threads:\n\n", __cgn_threadlist.thread_count);
+    for (__CGNThreadBlock *block = __cgn_threadlist.head; block;
          block = block->next, ++i) {
         for (uint64_t pos = 0; pos < __CGN_THREAD_BLOCK_SIZE; ++pos) {
             uint64_t id = i * __CGN_THREAD_BLOCK_SIZE + pos;
@@ -54,7 +54,7 @@ void print_threads(void) {
 #endif
 
 static __CGNThreadBlock *add_block(void) {
-    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + pagesize;
+    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + __cgn_pagesize;
     uint64_t alloc_size = stack_plus_guard_size * __CGN_THREAD_BLOCK_SIZE;
 
 #if !defined(_WIN32)
@@ -72,9 +72,9 @@ static __CGNThreadBlock *add_block(void) {
     __cgn_check_malloc(stacks);
 
     for (uint64_t i = 0; i < __CGN_THREAD_BLOCK_SIZE; ++i) {
-        // Add pagesize to offset to put guard page at end of stack, with the stack
+        // Add __cgn_pagesize to offset to put guard page at end of stack, with the stack
         // growing downward
-        uint64_t offset = (i * stack_plus_guard_size) + pagesize;
+        uint64_t offset = (i * stack_plus_guard_size) + __cgn_pagesize;
         mprotect(stacks + offset, __CGN_STACK_SIZE, PROT_READ | PROT_WRITE);
     }
 #else
@@ -83,7 +83,7 @@ static __CGNThreadBlock *add_block(void) {
     __cgn_check_malloc(stacks);
 
     for (uint64_t i = 0; i < __CGN_THREAD_BLOCK_SIZE; ++i) {
-        uint64_t offset = (i * stack_plus_guard_size) + pagesize;
+        uint64_t offset = (i * stack_plus_guard_size) + __cgn_pagesize;
 
         void *_oldprot;
         VirtualProtect(stacks + offset, __CGN_STACK_SIZE, PAGE_READWRITE, _oldprot);
@@ -94,69 +94,69 @@ static __CGNThreadBlock *add_block(void) {
         (__CGNThreadBlock *)calloc(1, sizeof(__CGNThreadBlock));
     __cgn_check_malloc(block);
 
-    if (!threadlist.tail) {
-        threadlist.head = block;
+    if (!__cgn_threadlist.tail) {
+        __cgn_threadlist.head = block;
     } else {
-        threadlist.tail->next = block;
-        block->prev = threadlist.tail;
+        __cgn_threadlist.tail->next = block;
+        block->prev = __cgn_threadlist.tail;
     }
 
     block->stacks = stacks;
 
-    threadlist.tail = block;
-    ++threadlist.block_count;
+    __cgn_threadlist.tail = block;
+    ++__cgn_threadlist.block_count;
 
     return block;
 }
 
 void seagreen_init_rt(void) {
-    if (threadlist.head) {
+    if (__cgn_threadlist.head) {
         // No need to initialize if already initialized
         return;
     }
 
-    if (!pagesize) {
+    if (!__cgn_pagesize) {
 #if !defined(_WIN32)
-        pagesize = getpagesize();
+        __cgn_pagesize = getpagesize();
 #else
         LPSYSTEM_INFO sysinfo;
         GetSystemInfo(&sysinfo);
 
-        pagesize = sysinfo->dwPageSize;
+        __cgn_pagesize = sysinfo->dwPageSize;
 #endif
     }
 
     __CGNThreadBlock *block = add_block();
 
-    main_thread = &threadlist.head->threads[0];
-    main_thread->state = __CGN_THREAD_STATE_RUNNING;
-    main_thread->yield_toggle = 1;
+    __cgn_main_thread = &__cgn_threadlist.head->threads[0];
+    __cgn_main_thread->state = __CGN_THREAD_STATE_RUNNING;
+    __cgn_main_thread->yield_toggle = 1;
 
-    curr_thread = main_thread;
+    __cgn_curr_thread = __cgn_main_thread;
 
-    sched_block = block;
-    sched_block_pos = 0;
-    sched_thread_pos = 0;
+    __cgn_sched_block = block;
+    __cgn_sched_block_pos = 0;
+    __cgn_sched_thread_pos = 0;
 
-    main_thread->in_use = 1;
+    __cgn_main_thread->in_use = 1;
     block->used_thread_count = 1;
 }
 
 void seagreen_free_rt(void) {
-    if (!threadlist.head) {
+    if (!__cgn_threadlist.head) {
         // No need to deinitialize if not already initialized
         return;
     }
 
-    if (curr_thread != main_thread) {
+    if (__cgn_curr_thread != __cgn_main_thread) {
         // Can only free from the main thread
         return;
     }
 
-    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + pagesize;
+    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + __cgn_pagesize;
     uint64_t block_alloc_size = stack_plus_guard_size * __CGN_THREAD_BLOCK_SIZE;
 
-    __CGNThreadBlock *block = threadlist.head;
+    __CGNThreadBlock *block = __cgn_threadlist.head;
 
     while (block) {
         __CGNThreadBlock *next = block->next;
@@ -171,22 +171,21 @@ void seagreen_free_rt(void) {
         block = next;
     }
 
-    threadlist.head = 0;
+    __cgn_threadlist.head = 0;
 
-    curr_thread = 0;
-    main_thread = 0;
+    __cgn_curr_thread = 0;
+    __cgn_main_thread = 0;
 
-    sched_block = 0;
-    sched_block_pos = 0;
-    sched_thread_pos = 0;
+    __cgn_sched_block = 0;
+    __cgn_sched_block_pos = 0;
+    __cgn_sched_thread_pos = 0;
 }
 
 void async_yield(void) {
-    __CGNThread *t = __cgn_get_curr_thread();
-    __cgn_savectx(&t->ctx);
+    __cgn_savectx(&__cgn_curr_thread->ctx);
 
-    _Bool temp_yield_toggle = t->yield_toggle;
-    t->yield_toggle = !t->yield_toggle;
+    _Bool temp_yield_toggle = __cgn_curr_thread->yield_toggle;
+    __cgn_curr_thread->yield_toggle = !__cgn_curr_thread->yield_toggle;
 
     if (temp_yield_toggle) {
         __cgn_scheduler();
@@ -195,13 +194,13 @@ void async_yield(void) {
 
 void __cgn_scheduler(void) {
     while (1) {
-        for (; sched_block; sched_block = sched_block->next, ++sched_block_pos) {
-            if (!sched_block->used_thread_count) {
+        for (; __cgn_sched_block; __cgn_sched_block = __cgn_sched_block->next, ++__cgn_sched_block_pos) {
+            if (!__cgn_sched_block->used_thread_count) {
                 continue;
             }
 
-            for (; sched_thread_pos < __CGN_THREAD_BLOCK_SIZE; ++sched_thread_pos) {
-                __CGNThread *staged_thread = &sched_block->threads[sched_thread_pos];
+            for (; __cgn_sched_thread_pos < __CGN_THREAD_BLOCK_SIZE; ++__cgn_sched_thread_pos) {
+                __CGNThread *staged_thread = &__cgn_sched_block->threads[__cgn_sched_thread_pos];
 
                 if (!staged_thread->in_use) {
                     continue;
@@ -228,8 +227,8 @@ void __cgn_scheduler(void) {
                     continue;
                 }
 
-                __CGNThread *running_thread = curr_thread;
-                curr_thread = staged_thread;
+                __CGNThread *running_thread = __cgn_curr_thread;
+                __cgn_curr_thread = staged_thread;
 
                 if (running_thread->state == __CGN_THREAD_STATE_RUNNING) {
                     running_thread->state = __CGN_THREAD_STATE_READY;
@@ -239,16 +238,16 @@ void __cgn_scheduler(void) {
 
                 // Won't loop after loading new ctx; increment thread position for next
                 // access to scheduler
-                ++sched_thread_pos;
+                ++__cgn_sched_thread_pos;
 
                 __cgn_loadctx(&staged_thread->ctx);
             }
 
-            sched_thread_pos = 0;
+            __cgn_sched_thread_pos = 0;
         }
 
-        sched_block = threadlist.head;
-        sched_block_pos = 0;
+        __cgn_sched_block = __cgn_threadlist.head;
+        __cgn_sched_block_pos = 0;
     }
 }
 
@@ -256,12 +255,12 @@ inline __CGNThreadBlock *__cgn_get_block(uint64_t id) {
     __CGNThreadBlock *block;
 
     uint64_t block_pos = id / __CGN_THREAD_BLOCK_SIZE;
-    if (block_pos > threadlist.block_count / 2) {
-        block = threadlist.tail;
-        for (uint64_t i = threadlist.block_count - 1; i > block_pos;
+    if (block_pos > __cgn_threadlist.block_count / 2) {
+        block = __cgn_threadlist.tail;
+        for (uint64_t i = __cgn_threadlist.block_count - 1; i > block_pos;
              --i, block = block->prev);
     } else {
-        block = threadlist.head;
+        block = __cgn_threadlist.head;
         for (uint64_t i = 0; i < block_pos; ++i, block = block->next);
     }
 
@@ -273,14 +272,14 @@ inline __CGNThread *__cgn_get_thread(uint64_t id) {
     return &block->threads[id % __CGN_THREAD_BLOCK_SIZE];
 }
 
-__CGNThread *__cgn_add_thread(uint64_t *id, void **stack) {
-    __CGNThreadBlock *block = threadlist.tail;
+__CGNThread *__cgn_add_thread(void **stack) {
+    __CGNThreadBlock *block = __cgn_threadlist.tail;
 
-    uint64_t block_pos = threadlist.block_count - 1;
+    uint64_t block_pos = __cgn_threadlist.block_count - 1;
     while (block->used_thread_count == __CGN_THREAD_BLOCK_SIZE) {
         if (!block->prev) {
             block = add_block();
-            block_pos = threadlist.block_count - 1;
+            block_pos = __cgn_threadlist.block_count - 1;
             break;
         } else {
             block = block->prev;
@@ -297,14 +296,13 @@ __CGNThread *__cgn_add_thread(uint64_t *id, void **stack) {
     t->in_use = 1;
     t->state = __CGN_THREAD_STATE_READY;
 
+    t->id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
     t->yield_toggle = 1;
 
-    ++threadlist.thread_count;
+    ++__cgn_threadlist.thread_count;
     ++block->used_thread_count;
 
-    *id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
-
-    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + pagesize;
+    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + __cgn_pagesize;
     *stack = block->stacks + (pos + 1) * stack_plus_guard_size;
 
     return t;
@@ -315,14 +313,6 @@ void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos) {
 
     *t = (__CGNThread){0};
 
-    --threadlist.thread_count;
+    --__cgn_threadlist.thread_count;
     --block->used_thread_count;
-}
-
-inline __CGNThread *__cgn_get_curr_thread(void) {
-    return curr_thread;
-}
-
-inline __CGNThread *__cgn_get_main_thread(void) {
-    return main_thread;
 }

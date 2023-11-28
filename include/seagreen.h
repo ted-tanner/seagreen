@@ -1,9 +1,11 @@
-#include <_types/_uint64_t.h>
 #ifndef SEAGREEN_H
 
 #if !defined __GNUC__ && !defined __clang__
 #warning "seagreenlib only officially supports the GCC and Clang compilers"
 #endif
+
+#include "cgninternals/cgncoroutine.h"
+#include "cgninternals/cgntypes.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -21,8 +23,6 @@
 #include <unistd.h>
 #endif
 
-#include "cgninternals/coroutine.h"
-
 #ifdef CGN_DEBUG
 void print_threads(void);
 #endif
@@ -34,87 +34,9 @@ void print_threads(void);
         abort();                                        \
     }
 
-// Macros that typedef don't support spaces in type names
-typedef signed char signedchar;
-typedef unsigned char unsignedchar;
-typedef unsigned short unsignedshort;
-typedef unsigned int unsignedint;
-typedef unsigned long unsignedlong;
-typedef long long longlong;
-typedef unsigned long long unsignedlonglong;
-typedef void *voidptr;
-
 // The stack space allocated for each thread. Many of these pages will remain
 // untouched
 #define __CGN_STACK_SIZE 1024 * 1024 * 2 // 2 MB
-
-// After some testing, it appears that 1024 is the sweet spot. 2048 doesn't
-// speed things up under load, and 512 is slower than 1024.
-#define __CGN_THREAD_BLOCK_SIZE 1024
-
-#define __cgn_define_handle_type(T)             \
-    typedef struct _CGNThreadHandle_##T {       \
-        uint64_t id;                            \
-    } CGNThreadHandle_##T
-
-__cgn_define_handle_type(void);
-__cgn_define_handle_type(char);
-__cgn_define_handle_type(signedchar);
-__cgn_define_handle_type(unsignedchar);
-__cgn_define_handle_type(short);
-__cgn_define_handle_type(unsignedshort);
-__cgn_define_handle_type(int);
-__cgn_define_handle_type(unsignedint);
-__cgn_define_handle_type(long);
-__cgn_define_handle_type(unsignedlong);
-__cgn_define_handle_type(longlong);
-__cgn_define_handle_type(unsignedlonglong);
-__cgn_define_handle_type(float);
-__cgn_define_handle_type(double);
-__cgn_define_handle_type(voidptr);
-
-typedef enum __CGNThreadState_ {
-    __CGN_THREAD_STATE_READY,
-    __CGN_THREAD_STATE_RUNNING,
-    __CGN_THREAD_STATE_WAITING,
-    __CGN_THREAD_STATE_DONE,
-} __CGNThreadState;
-
-typedef struct __CGNThread_ {
-    __CGNThreadCtx ctx;
-
-    uint64_t awaited_thread_id;
-    uint64_t awaiting_thread_count;
-
-    uint64_t return_val;
-
-    __CGNThreadState state;
-
-    _Bool yield_toggle;
-    _Bool should_run;
-
-    _Bool in_use;
-
-    uint64_t scratch_space[3];
-} __CGNThread;
-
-typedef struct __CGNThreadBlock_ {
-    struct __CGNThreadBlock_ *next;
-    struct __CGNThreadBlock_ *prev;
-
-    __CGNThread threads[__CGN_THREAD_BLOCK_SIZE];
-    void *stacks;
-
-    uint64_t used_thread_count;
-} __CGNThreadBlock;
-
-typedef struct __CGNThreadList_ {
-    __CGNThreadBlock *head;
-    __CGNThreadBlock *tail;
-
-    uint64_t block_count;
-    uint64_t thread_count;
-} __CGNThreadList;
 
 void seagreen_init_rt(void);
 void seagreen_free_rt(void);
@@ -125,20 +47,27 @@ void __cgn_scheduler(void);
 __CGNThreadBlock *__cgn_get_block(uint64_t id);
 __CGNThread *__cgn_get_thread(uint64_t id);
 __CGNThread *__cgn_get_thread_by_block(__CGNThreadBlock *block, uint64_t pos);
-__CGNThread *__cgn_add_thread(uint64_t *id, void **stack);
+__CGNThread *__cgn_add_thread(void **stack);
 void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos);
 
-__CGNThread *__cgn_get_curr_thread(void);
-__CGNThread *__cgn_get_main_thread(void);
-
 #define async __attribute__((noinline))
+
+extern _Thread_local int __cgn_pagesize;
+
+extern _Thread_local __CGNThreadList __cgn_threadlist;
+
+extern _Thread_local __CGNThread *__cgn_curr_thread;
+extern _Thread_local __CGNThread *__cgn_main_thread;
+
+extern _Thread_local __CGNThreadBlock *__cgn_sched_block;
+extern _Thread_local uint64_t __cgn_sched_block_pos;
+extern _Thread_local uint64_t __cgn_sched_thread_pos;
 
 #define await(handle)                                                   \
     _Generic((handle),                                                  \
              CGNThreadHandle_void: ({                                   \
-                     __CGNThread *t_curr = __cgn_get_curr_thread();     \
-                     t_curr->awaited_thread_id = (handle).id;           \
-                     t_curr->state = __CGN_THREAD_STATE_WAITING;        \
+                     __cgn_curr_thread->awaited_thread_id = (handle).id; \
+                     __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING; \
                                                                         \
                      uint64_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE; \
                      __CGNThreadBlock *block = __cgn_get_block((handle).id); \
@@ -151,8 +80,8 @@ __CGNThread *__cgn_get_main_thread(void);
                          /* won't be scheduled until awaited thread has */ \
                          /* finished its execution */                   \
                          async_yield();                                 \
-                         t_curr->state = __CGN_THREAD_STATE_RUNNING;    \
-                         t_curr->yield_toggle = 0;                      \
+                         __cgn_curr_thread->state = __CGN_THREAD_STATE_RUNNING; \
+                         __cgn_curr_thread->yield_toggle = 0;           \
                                                                         \
                          if (!t->awaiting_thread_count) {               \
                              __cgn_remove_thread(block, pos);           \
@@ -162,9 +91,8 @@ __CGNThread *__cgn_get_main_thread(void);
                      (void)0;                                           \
                  }),                                                    \
              default: ({                                                \
-                     __CGNThread *t_curr = __cgn_get_curr_thread();     \
-                     t_curr->awaited_thread_id = (handle).id;           \
-                     t_curr->state = __CGN_THREAD_STATE_WAITING;        \
+                     __cgn_curr_thread->awaited_thread_id = (handle).id; \
+                     __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING; \
                                                                         \
                      uint64_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE; \
                      __CGNThreadBlock *block = __cgn_get_block((handle).id); \
@@ -178,8 +106,8 @@ __CGNThread *__cgn_get_main_thread(void);
                          /* won't be scheduled until awaited thread has */ \
                          /* finished its execution */                   \
                          async_yield();                                 \
-                         t_curr->state = __CGN_THREAD_STATE_RUNNING;    \
-                         t_curr->yield_toggle = 0;                      \
+                         __cgn_curr_thread->state = __CGN_THREAD_STATE_RUNNING; \
+                         __cgn_curr_thread->yield_toggle = 0;           \
                                                                         \
                          return_val = block->threads[pos].return_val;   \
                          if (!t->awaiting_thread_count) {               \
@@ -193,356 +121,44 @@ __CGNThread *__cgn_get_main_thread(void);
 #define async_run(Fn)                                                   \
     _Generic(                                                           \
         (Fn),                                                           \
-        char: ({                                                        \
-                CGNThreadHandle_char handle;                            \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run)  {                                 \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        signed char: ({                                                 \
-                CGNThreadHandle_signedchar handle;                      \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        unsigned char: ({                                               \
-                CGNThreadHandle_unsignedchar handle;                    \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        short: ({                                                       \
-                CGNThreadHandle_short handle;                           \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        unsigned short: ({                                              \
-                CGNThreadHandle_unsignedshort handle;                   \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
+        char: (void)0,                                                  \
+        signed char: (void)0,                                           \
+        unsigned char: (void)0,                                         \
+        short: (void)0,                                                 \
+        unsigned short: (void)0,                                        \
         int: ({                                                         \
-                /* Scope these vars so nothing needs to come off the */ \
-                /* stack after __cgn_savectx() */                       \
                 {                                                       \
-                    __CGNThread *curr_t = __cgn_get_curr_thread();      \
+                    void *stack;                                        \
+                    __CGNThread *t_new = __cgn_add_thread(&stack);      \
+                    t_new->scratch = (uint64_t) t_new;                  \
+                    __cgn_curr_thread->scratch = (uint64_t) t_new;      \
                                                                         \
-                    void *t_stack;                                      \
-                    uint64_t t_id;                                      \
-                    __CGNThread *t = __cgn_add_thread(&t_id, &t_stack); \
-                                                                        \
-                    t->should_run = 1;                                  \
-                    curr_t->should_run = 0;                             \
-                                                                        \
-                    curr_t->scratch_space[0] = (uint64_t) t;            \
-                    curr_t->scratch_space[1] = (uint64_t) t_stack;      \
-                    curr_t->scratch_space[2] = t_id;                    \
-                                                                        \
-                    __cgn_savectx(&t->ctx);                             \
+                    __cgn_savenewctx(&t_new->ctx, stack);               \
                 }                                                       \
                                                                         \
-                __CGNThread *curr_t = __cgn_get_curr_thread();          \
-                                                                        \
-                if (curr_t->should_run) {                               \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    curr_t->return_val = retval;                        \
-                    curr_t->state = __CGN_THREAD_STATE_DONE;            \
+                if (__cgn_curr_thread->scratch == (uint64_t) __cgn_curr_thread) { \
+                    ((__CGNThread *) __cgn_curr_thread->scratch)->return_val \
+                        = (uint64_t) Fn;                                \
+                    ((__CGNThread *) __cgn_curr_thread->scratch)->state \
+                        = __CGN_THREAD_STATE_DONE;                      \
                     __cgn_scheduler();                                  \
                     /* This should never be reached */                  \
                     assert(0);                                          \
-                } else {                                                \
-                    __CGNThread *t =                                    \
-                        (__CGNThread *)curr_t->scratch_space[0];        \
-                    void *t_stack = (void *)curr_t->scratch_space[1];   \
-                    t->ctx.sp = (uint64_t) t_stack;                     \
                 }                                                       \
                                                                         \
-                uint64_t t_id = curr_t->scratch_space[2];               \
-                CGNThreadHandle_int handle = {                          \
-                    .id = t_id,                                         \
+                (CGNThreadHandle_int) {                                 \
+                    .id = ((__CGNThread *) __cgn_curr_thread->scratch)->id, \
                 };                                                      \
-                                                                        \
-                handle;                                                 \
             }),                                                         \
-        unsigned int: ({                                                \
-                CGNThreadHandle_unsignedint handle;                     \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        long: ({                                                        \
-                CGNThreadHandle_long handle;                            \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        unsigned long: ({                                               \
-                CGNThreadHandle_unsignedlong handle;                    \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        long long: ({                                                   \
-                CGNThreadHandle_longlong handle;                        \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        unsigned long long: ({                                          \
-                CGNThreadHandle_unsignedlonglong handle;                \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        float: ({                                                       \
-                CGNThreadHandle_float handle;                           \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        double: ({                                                      \
-                CGNThreadHandle_double handle;                          \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        void *: ({                                                      \
-                CGNThreadHandle_voidptr handle;                         \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    uint64_t retval = (uint64_t) Fn;                    \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->return_val = retval;                   \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }),                                                         \
-        default: ({                                                     \
-                CGNThreadHandle_void handle;                            \
-                                                                        \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&handle.id, &stack);	\
-                                                                        \
-                __cgn_savectx(&t->ctx);                                 \
-                                                                        \
-                _Bool temp_should_run = t->should_run;                  \
-                t->should_run = !t->should_run;                         \
-                                                                        \
-                if (temp_should_run) {                                  \
-                    Fn;                                                 \
-                    __CGNThread *curr_thread = __cgn_get_curr_thread(); \
-                    curr_thread->state = __CGN_THREAD_STATE_DONE;       \
-                    __cgn_scheduler();                                  \
-                } else {                                                \
-                }                                                       \
-                                                                        \
-                handle;                                                 \
-            }))
+        unsigned int: (void)0,                                          \
+        long: (void)0,                                                  \
+        unsigned long: (void)0,                                         \
+        long long: (void)0,                                             \
+        unsigned long long: (void)0,                                    \
+        float: (void)0,                                                 \
+        double: (void)0,                                                \
+        void *: (void)0,                                                \
+        default: (void)0)
 
 #define SEAGREEN_H
 #endif

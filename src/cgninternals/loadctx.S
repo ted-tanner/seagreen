@@ -10,8 +10,8 @@
 
 .balign 4
 __CGN_LOADCTX_NAME:
-    movq %rsp, (%rdi)
-    movq %rbp, 8(%rdi)
+    movq %rbp, (%rdi)
+    movq %rsp, 8(%rdi)
 
     movq %r12, 16(%rdi)
     movq %r13, 24(%rdi)
@@ -25,8 +25,8 @@ __CGN_LOADCTX_NAME:
 
 .balign 4
 __CGN_LOADCTX_NAME:
-    movq %rsp, (%rcx)
-    movq %rbp, 8(%rcx)
+    movq %rbp, (%rcx)
+    movq %rsp, 8(%rcx)
 
     movq %r12, 16(%rcx)
     movq %r13, 24(%rcx)
