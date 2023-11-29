@@ -8,10 +8,8 @@ IS_RELEASE=false
 
 if [[ $OPT_LEVEL = "" ]]; then
     if [[ $1 = "release" ]]; then
-        IS_RELEASE=true
         OPT_LEVEL=O3
     elif [[ $1 = "test" && $2 = "release" ]]; then
-        IS_RELEASE=true
         OPT_LEVEL=O3
     else
         OPT_LEVEL=O1
@@ -19,8 +17,8 @@ if [[ $OPT_LEVEL = "" ]]; then
 fi
 
 if [[ $CC_FLAGS = "" ]]; then
-    if [[ $IS_RELEASE = true ]]; then
-        CC_FLAGS="-Wall -Wextra -std=c11 -DNDEBUG -fverbose-asm"
+    if [[ $1 = "release" ]]; then
+        CC_FLAGS="-Wall -Wextra -std=c11 -DNDEBUG"
     else
         CC_FLAGS="-Wall -Wextra -std=c11 -g"
     fi

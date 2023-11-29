@@ -36,7 +36,7 @@ void print_threads(void);
 
 // The stack space allocated for each thread. Many of these pages will remain
 // untouched
-#define __CGN_STACK_SIZE 1024 * 1024 * 2 // 2 MB
+#define SEAGREEN_MAX_STACK_SIZE 1024 * 1024 * 2 // 2 MB
 
 void seagreen_init_rt(void);
 void seagreen_free_rt(void);
@@ -44,11 +44,11 @@ void async_yield(void);
 
 void __cgn_scheduler(void);
 
-__CGNThreadBlock *__cgn_get_block(uint64_t id);
-__CGNThread *__cgn_get_thread(uint64_t id);
-__CGNThread *__cgn_get_thread_by_block(__CGNThreadBlock *block, uint64_t pos);
+__CGNThreadBlock *__cgn_get_block(uint32_t id);
+__CGNThread *__cgn_get_thread(uint32_t id);
+__CGNThread *__cgn_get_thread_by_block(__CGNThreadBlock *block, uint32_t pos);
 __CGNThread *__cgn_add_thread(void **stack);
-void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos);
+void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
 
 #define async __attribute__((noinline))
 
@@ -60,8 +60,8 @@ extern _Thread_local __CGNThread *__cgn_curr_thread;
 extern _Thread_local __CGNThread *__cgn_main_thread;
 
 extern _Thread_local __CGNThreadBlock *__cgn_sched_block;
-extern _Thread_local uint64_t __cgn_sched_block_pos;
-extern _Thread_local uint64_t __cgn_sched_thread_pos;
+extern _Thread_local uint32_t __cgn_sched_block_pos;
+extern _Thread_local uint32_t __cgn_sched_thread_pos;
 
 #define await(handle)                                                   \
     _Generic((handle),                                                  \
@@ -69,7 +69,7 @@ extern _Thread_local uint64_t __cgn_sched_thread_pos;
                      __cgn_curr_thread->awaited_thread_id = (handle).id; \
                      __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING; \
                                                                         \
-                     uint64_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE; \
+                     uint32_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE; \
                      __CGNThreadBlock *block = __cgn_get_block((handle).id); \
                                                                         \
                      __CGNThread *t = &block->threads[pos];             \
@@ -80,8 +80,6 @@ extern _Thread_local uint64_t __cgn_sched_thread_pos;
                          /* won't be scheduled until awaited thread has */ \
                          /* finished its execution */                   \
                          async_yield();                                 \
-                         __cgn_curr_thread->state = __CGN_THREAD_STATE_RUNNING; \
-                         __cgn_curr_thread->yield_toggle = 0;           \
                                                                         \
                          if (!t->awaiting_thread_count) {               \
                              __cgn_remove_thread(block, pos);           \
@@ -94,7 +92,7 @@ extern _Thread_local uint64_t __cgn_sched_thread_pos;
                      __cgn_curr_thread->awaited_thread_id = (handle).id; \
                      __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING; \
                                                                         \
-                     uint64_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE; \
+                     uint32_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE; \
                      __CGNThreadBlock *block = __cgn_get_block((handle).id); \
                                                                         \
                      __CGNThread *t = &block->threads[pos];             \
@@ -106,10 +104,8 @@ extern _Thread_local uint64_t __cgn_sched_thread_pos;
                          /* won't be scheduled until awaited thread has */ \
                          /* finished its execution */                   \
                          async_yield();                                 \
-                         __cgn_curr_thread->state = __CGN_THREAD_STATE_RUNNING; \
-                         __cgn_curr_thread->yield_toggle = 0;           \
                                                                         \
-                         return_val = block->threads[pos].return_val;   \
+                         return_val = t->return_val;   \
                          if (!t->awaiting_thread_count) {               \
                              __cgn_remove_thread(block, pos);           \
                          }                                              \
@@ -127,27 +123,21 @@ extern _Thread_local uint64_t __cgn_sched_thread_pos;
         short: (void)0,                                                 \
         unsigned short: (void)0,                                        \
         int: ({                                                         \
-                {                                                       \
-                    void *stack;                                        \
-                    __CGNThread *t_new = __cgn_add_thread(&stack);      \
-                    t_new->scratch = (uint64_t) t_new;                  \
-                    __cgn_curr_thread->scratch = (uint64_t) t_new;      \
+                void *stack;                                            \
+                __CGNThread *t = __cgn_add_thread(&stack);              \
                                                                         \
-                    __cgn_savenewctx(&t_new->ctx, stack);               \
-                }                                                       \
+                __cgn_savenewctx(&t->ctx, stack);                       \
                                                                         \
-                if (__cgn_curr_thread->scratch == (uint64_t) __cgn_curr_thread) { \
-                    ((__CGNThread *) __cgn_curr_thread->scratch)->return_val \
-                        = (uint64_t) Fn;                                \
-                    ((__CGNThread *) __cgn_curr_thread->scratch)->state \
-                        = __CGN_THREAD_STATE_DONE;                      \
+                if (t == __cgn_curr_thread) {                           \
+                    t->return_val = (uint64_t) Fn;                      \
+                    t->state = __CGN_THREAD_STATE_DONE;                 \
                     __cgn_scheduler();                                  \
                     /* This should never be reached */                  \
                     assert(0);                                          \
                 }                                                       \
                                                                         \
                 (CGNThreadHandle_int) {                                 \
-                    .id = ((__CGNThread *) __cgn_curr_thread->scratch)->id, \
+                    .id = t->id,                                        \
                 };                                                      \
             }),                                                         \
         unsigned int: (void)0,                                          \

@@ -9,8 +9,8 @@ _Thread_local __CGNThread *__cgn_curr_thread = 0;
 _Thread_local __CGNThread *__cgn_main_thread = 0;
 
 _Thread_local __CGNThreadBlock *__cgn_sched_block = 0;
-_Thread_local uint64_t __cgn_sched_block_pos = 0;
-_Thread_local uint64_t __cgn_sched_thread_pos = 0;
+_Thread_local uint32_t __cgn_sched_block_pos = 0;
+_Thread_local uint32_t __cgn_sched_thread_pos = 0;
 
 #ifdef CGN_DEBUG
 
@@ -32,17 +32,17 @@ static char *state_to_name(__CGNThreadState state) {
 void print_threads(void) {
     uint64_t i = 0;
     printf("\n------------------------------------\n");
-    printf("%llu threads:\n\n", __cgn_threadlist.thread_count);
+    printf("%u threads:\n\n", __cgn_threadlist.thread_count);
     for (__CGNThreadBlock *block = __cgn_threadlist.head; block;
          block = block->next, ++i) {
         for (uint64_t pos = 0; pos < __CGN_THREAD_BLOCK_SIZE; ++pos) {
-            uint64_t id = i * __CGN_THREAD_BLOCK_SIZE + pos;
+            uint32_t id = i * __CGN_THREAD_BLOCK_SIZE + pos;
             __CGNThread *thread = &block->threads[pos];
 
             if (thread->in_use) {
                 __CGNThread *thread = &block->threads[pos];
-                printf("thread %llu:\n\tstate: %s\n\tawaiting: %llu\n\tawait count: "
-                       "%llu\n\treturn_val as int: %d\n\tptr: %p\n\n",
+                printf("thread %u:\n\tstate: %s\n\tawaiting: %u\n\tawait count: "
+                       "%u\n\treturn_val as int: %d\n\tptr: %p\n\n",
                        id, state_to_name(thread->state), thread->awaited_thread_id,
                        thread->awaiting_thread_count, (int)thread->return_val, thread);
             }
@@ -54,7 +54,7 @@ void print_threads(void) {
 #endif
 
 static __CGNThreadBlock *add_block(void) {
-    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + __cgn_pagesize;
+    uint64_t stack_plus_guard_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
     uint64_t alloc_size = stack_plus_guard_size * __CGN_THREAD_BLOCK_SIZE;
 
 #if !defined(_WIN32)
@@ -75,7 +75,7 @@ static __CGNThreadBlock *add_block(void) {
         // Add __cgn_pagesize to offset to put guard page at end of stack, with the stack
         // growing downward
         uint64_t offset = (i * stack_plus_guard_size) + __cgn_pagesize;
-        mprotect(stacks + offset, __CGN_STACK_SIZE, PROT_READ | PROT_WRITE);
+        mprotect(stacks + offset, SEAGREEN_MAX_STACK_SIZE, PROT_READ | PROT_WRITE);
     }
 #else
     void *stacks =
@@ -86,7 +86,7 @@ static __CGNThreadBlock *add_block(void) {
         uint64_t offset = (i * stack_plus_guard_size) + __cgn_pagesize;
 
         void *_oldprot;
-        VirtualProtect(stacks + offset, __CGN_STACK_SIZE, PAGE_READWRITE, _oldprot);
+        VirtualProtect(stacks + offset, SEAGREEN_MAX_STACK_SIZE, PAGE_READWRITE, _oldprot);
     }
 #endif
 
@@ -153,7 +153,7 @@ void seagreen_free_rt(void) {
         return;
     }
 
-    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + __cgn_pagesize;
+    uint64_t stack_plus_guard_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
     uint64_t block_alloc_size = stack_plus_guard_size * __CGN_THREAD_BLOCK_SIZE;
 
     __CGNThreadBlock *block = __cgn_threadlist.head;
@@ -251,23 +251,23 @@ void __cgn_scheduler(void) {
     }
 }
 
-inline __CGNThreadBlock *__cgn_get_block(uint64_t id) {
+inline __CGNThreadBlock *__cgn_get_block(uint32_t id) {
     __CGNThreadBlock *block;
 
-    uint64_t block_pos = id / __CGN_THREAD_BLOCK_SIZE;
+    uint32_t block_pos = id / __CGN_THREAD_BLOCK_SIZE;
     if (block_pos > __cgn_threadlist.block_count / 2) {
         block = __cgn_threadlist.tail;
-        for (uint64_t i = __cgn_threadlist.block_count - 1; i > block_pos;
+        for (uint32_t i = __cgn_threadlist.block_count - 1; i > block_pos;
              --i, block = block->prev);
     } else {
         block = __cgn_threadlist.head;
-        for (uint64_t i = 0; i < block_pos; ++i, block = block->next);
+        for (uint32_t i = 0; i < block_pos; ++i, block = block->next);
     }
 
     return block;
 }
 
-inline __CGNThread *__cgn_get_thread(uint64_t id) {
+inline __CGNThread *__cgn_get_thread(uint32_t id) {
     __CGNThreadBlock *block = __cgn_get_block(id);
     return &block->threads[id % __CGN_THREAD_BLOCK_SIZE];
 }
@@ -275,7 +275,7 @@ inline __CGNThread *__cgn_get_thread(uint64_t id) {
 __CGNThread *__cgn_add_thread(void **stack) {
     __CGNThreadBlock *block = __cgn_threadlist.tail;
 
-    uint64_t block_pos = __cgn_threadlist.block_count - 1;
+    uint32_t block_pos = __cgn_threadlist.block_count - 1;
     while (block->used_thread_count == __CGN_THREAD_BLOCK_SIZE) {
         if (!block->prev) {
             block = add_block();
@@ -288,7 +288,7 @@ __CGNThread *__cgn_add_thread(void **stack) {
     }
 
     __CGNThread *t;
-    uint64_t pos = 0;
+    uint32_t pos = 0;
     // Treat the unused_threads int as an array of bits and find the index
     // of the most significant bit
     for (t = &block->threads[0]; t->in_use; ++pos, ++t);
@@ -302,16 +302,17 @@ __CGNThread *__cgn_add_thread(void **stack) {
     ++__cgn_threadlist.thread_count;
     ++block->used_thread_count;
 
-    uint64_t stack_plus_guard_size = __CGN_STACK_SIZE + __cgn_pagesize;
+    uint64_t stack_plus_guard_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
     *stack = block->stacks + (pos + 1) * stack_plus_guard_size;
 
     return t;
 }
 
-void __cgn_remove_thread(__CGNThreadBlock *block, uint64_t pos) {
+void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos) {
     __CGNThread *t = &block->threads[pos];
 
     *t = (__CGNThread){0};
+    t->state = __CGN_THREAD_STATE_READY;
 
     --__cgn_threadlist.thread_count;
     --block->used_thread_count;

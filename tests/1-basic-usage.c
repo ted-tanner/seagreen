@@ -8,43 +8,47 @@ static int pos = 0;
 
 async int foo(int a, int b) {
     printf("foo() - 1\n");
-    running_func_is_foo[pos++] = 1;
+    running_func_is_foo[pos++] = 0;
     async_yield();
 
     printf("foo() - 2\n");
-    running_func_is_foo[pos++] = 1;
+    running_func_is_foo[pos++] = 0;
     async_yield();
 
     printf("foo() - 3\n");
-    running_func_is_foo[pos++] = 1;
+    running_func_is_foo[pos++] = 0;
     async_yield();
 
     printf("foo() - 4\n");
-    running_func_is_foo[pos++] = 1;
+    running_func_is_foo[pos++] = 0;
 
     return a + b;
 }
 
 async int bar(int a) {
     printf("bar() - 1\n");
-    running_func_is_foo[pos++] = 0;
+    running_func_is_foo[pos++] = 1;
     async_yield();
 
     printf("bar() - 2\n");
-    running_func_is_foo[pos++] = 0;
+    running_func_is_foo[pos++] = 1;
     async_yield();
 
     printf("bar() - 3\n");
-    running_func_is_foo[pos++] = 0;
+    running_func_is_foo[pos++] = 1;
     async_yield();
 
     printf("bar() - 4\n");
-    running_func_is_foo[pos++] = 0;
+    running_func_is_foo[pos++] = 1;
 
     return a + 5;
 }
 
 int main(void) {
+    for (int i = 0; i < 8; ++i) {
+        running_func_is_foo[i] = 2;
+    }
+
     printf("Initializing runtime...\n");
     seagreen_init_rt();
 

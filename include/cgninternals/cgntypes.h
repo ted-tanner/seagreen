@@ -105,7 +105,7 @@ __cgn_define_handle_type(float);
 __cgn_define_handle_type(double);
 __cgn_define_handle_type(voidptr);
 
-typedef enum __CGNThreadState_ {
+typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
     __CGN_THREAD_STATE_READY,
     __CGN_THREAD_STATE_RUNNING,
     __CGN_THREAD_STATE_WAITING,
@@ -116,23 +116,22 @@ typedef enum __CGNThreadState_ {
 // speed things up under load, and 512 is slower than 1024.
 #define __CGN_THREAD_BLOCK_SIZE 1024
 
+// Careful alignment of these struct fields to avoid padding is important
+// for performance here.
 typedef struct __CGNThread_ {
-    uint64_t id;
-
-    uint64_t awaited_thread_id;
-    uint64_t awaiting_thread_count;
-
-    uint64_t return_val;
-    uint64_t scratch;
-    uint64_t scratch2;
-
-    __CGNThreadCtx ctx;
+    uint32_t id;
     __CGNThreadState state;
 
     _Bool yield_toggle;
     _Bool should_run;
-
     _Bool in_use;
+
+    uint32_t awaited_thread_id;
+    uint32_t awaiting_thread_count;
+
+    __CGNThreadCtx ctx;
+
+    uint64_t return_val;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -142,15 +141,15 @@ typedef struct __CGNThreadBlock_ {
     __CGNThread threads[__CGN_THREAD_BLOCK_SIZE];
     void *stacks;
 
-    uint64_t used_thread_count;
+    uint16_t used_thread_count;
 } __CGNThreadBlock;
 
 typedef struct __CGNThreadList_ {
     __CGNThreadBlock *head;
     __CGNThreadBlock *tail;
 
-    uint64_t block_count;
-    uint64_t thread_count;
+    uint32_t block_count;
+    uint32_t thread_count;
 } __CGNThreadList;
 
 #define CGN_TYPES_H
