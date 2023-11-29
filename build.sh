@@ -18,9 +18,9 @@ fi
 
 if [[ $CC_FLAGS = "" ]]; then
     if [[ $1 = "release" ]]; then
-        CC_FLAGS="-Wall -Wextra -std=c11 -DNDEBUG"
+        CC_FLAGS="-Wall -Wextra -std=c11 -std=gnu2x -DNDEBUG"
     else
-        CC_FLAGS="-Wall -Wextra -std=c11 -g"
+        CC_FLAGS="-Wall -Wextra -std=c11 -std=gnu2x -g"
     fi
 fi
 

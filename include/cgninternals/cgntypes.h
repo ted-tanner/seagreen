@@ -89,7 +89,6 @@ typedef void *voidptr;
         uint64_t id;                            \
     } CGNThreadHandle_##T
 
-__cgn_define_handle_type(void);
 __cgn_define_handle_type(char);
 __cgn_define_handle_type(signedchar);
 __cgn_define_handle_type(unsignedchar);
@@ -123,7 +122,7 @@ typedef struct __CGNThread_ {
     __CGNThreadState state;
 
     _Bool yield_toggle;
-    _Bool should_run;
+    _Bool disable_yield;
     _Bool in_use;
 
     uint32_t awaited_thread_id;

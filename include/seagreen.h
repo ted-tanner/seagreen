@@ -63,92 +63,295 @@ extern _Thread_local __CGNThreadBlock *__cgn_sched_block;
 extern _Thread_local uint32_t __cgn_sched_block_pos;
 extern _Thread_local uint32_t __cgn_sched_thread_pos;
 
-#define await(handle)                                                   \
-    _Generic((handle),                                                  \
-             CGNThreadHandle_void: ({                                   \
-                     __cgn_curr_thread->awaited_thread_id = (handle).id; \
-                     __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING; \
-                                                                        \
-                     uint32_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE; \
-                     __CGNThreadBlock *block = __cgn_get_block((handle).id); \
-                                                                        \
-                     __CGNThread *t = &block->threads[pos];             \
-                     if (t->in_use) {                                   \
-                         t->awaiting_thread_count++;                    \
-                                                                        \
-                         /* Because thread is waiting, the curr thread */ \
-                         /* won't be scheduled until awaited thread has */ \
-                         /* finished its execution */                   \
-                         async_yield();                                 \
-                                                                        \
-                         if (!t->awaiting_thread_count) {               \
-                             __cgn_remove_thread(block, pos);           \
-                         }                                              \
-                     }                                                  \
-                                                                        \
-                     (void)0;                                           \
-                 }),                                                    \
-             default: ({                                                \
-                     __cgn_curr_thread->awaited_thread_id = (handle).id; \
-                     __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING; \
-                                                                        \
-                     uint32_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE; \
-                     __CGNThreadBlock *block = __cgn_get_block((handle).id); \
-                                                                        \
-                     __CGNThread *t = &block->threads[pos];             \
-                     uint64_t return_val = 0;                           \
-                     if (t->in_use) {                                   \
-                         t->awaiting_thread_count++;                    \
-                                                                        \
-                         /* Because thread is waiting, the curr thread */ \
-                         /* won't be scheduled until awaited thread has */ \
-                         /* finished its execution */                   \
-                         async_yield();                                 \
-                                                                        \
-                         return_val = t->return_val;   \
-                         if (!t->awaiting_thread_count) {               \
-                             __cgn_remove_thread(block, pos);           \
-                         }                                              \
-                     }                                                  \
-                                                                        \
-                     return_val;                                        \
-                 }))
+#define await(handle) ({                                     \
+            __cgn_curr_thread->awaited_thread_id = (handle).id;     \
+            __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;  \
+                                                                    \
+            uint32_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE;   \
+            __CGNThreadBlock *block = __cgn_get_block((handle).id); \
+                                                                    \
+            __CGNThread *t = &block->threads[pos];                  \
+            uint64_t return_val = 0;                                \
+            if (t->in_use) {                                        \
+                t->awaiting_thread_count++;                         \
+                                                                    \
+                /* Because thread is waiting, the curr thread */    \
+                /* won't be scheduled until awaited thread has */   \
+                /* finished its execution */                        \
+                async_yield();                                      \
+                                                                    \
+                return_val = t->return_val;                         \
+                if (!t->awaiting_thread_count) {                    \
+                    __cgn_remove_thread(block, pos);                \
+                }                                                   \
+            }                                                       \
+                                                                    \
+            return_val;                                             \
+        })
 
-#define async_run(Fn)                                                   \
-    _Generic(                                                           \
-        (Fn),                                                           \
-        char: (void)0,                                                  \
-        signed char: (void)0,                                           \
-        unsigned char: (void)0,                                         \
-        short: (void)0,                                                 \
-        unsigned short: (void)0,                                        \
-        int: ({                                                         \
-                void *stack;                                            \
-                __CGNThread *t = __cgn_add_thread(&stack);              \
-                                                                        \
-                __cgn_savenewctx(&t->ctx, stack);                       \
-                                                                        \
-                if (t == __cgn_curr_thread) {                           \
-                    t->return_val = (uint64_t) Fn;                      \
-                    t->state = __CGN_THREAD_STATE_DONE;                 \
-                    __cgn_scheduler();                                  \
-                    /* This should never be reached */                  \
-                    assert(0);                                          \
-                }                                                       \
-                                                                        \
-                (CGNThreadHandle_int) {                                 \
-                    .id = t->id,                                        \
-                };                                                      \
-            }),                                                         \
-        unsigned int: (void)0,                                          \
-        long: (void)0,                                                  \
-        unsigned long: (void)0,                                         \
-        long long: (void)0,                                             \
-        unsigned long long: (void)0,                                    \
-        float: (void)0,                                                 \
-        double: (void)0,                                                \
-        void *: (void)0,                                                \
-        default: (void)0)
+#define async_run(Fn)                                       \
+    _Generic(                                               \
+        (Fn),                                               \
+        char: ({                                            \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_char) {                    \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        signed char: ({                                     \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_signedchar) {              \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        unsigned char: ({                                   \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_unsignedchar) {            \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        short: ({                                           \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_short) {                   \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        unsigned short: ({                                  \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_unsignedshort) {           \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        int: ({                                             \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_int) {                     \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        unsigned int: ({                                    \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_unsignedint) {             \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        long: ({                                            \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_long) {                    \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        unsigned long: ({                                   \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_unsignedlong) {            \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        long long: ({                                       \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_longlong) {                \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        unsigned long long: ({                              \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_unsignedlonglong) {        \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        float: ({                                           \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_float) {                   \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        double: ({                                          \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_double) {                  \
+                    .id = t->id,                            \
+                };                                          \
+            }),                                             \
+        void *: ({                                          \
+                void *stack;                                \
+                __CGNThread *t = __cgn_add_thread(&stack);  \
+                                                            \
+                __cgn_savenewctx(&t->ctx, stack);           \
+                                                            \
+                if (t == __cgn_curr_thread) {               \
+                    t->return_val = (uint64_t) Fn;          \
+                    t->state = __CGN_THREAD_STATE_DONE;     \
+                    __cgn_scheduler();                      \
+                    /* This should never be reached */      \
+                    assert(0);                              \
+                }                                           \
+                                                            \
+                (CGNThreadHandle_voidptr) {                 \
+                    .id = t->id,                            \
+                };                                          \
+            }))
+
+#define run_as_sync(Fn)                                                 \
+    ({                                                                  \
+        __cgn_curr_thread->disable_yield = 1;                           \
+        typeof(Fn) retval = Fn;                                         \
+        __cgn_curr_thread->disable_yield = 0;                           \
+        retval;                                                         \
+    })
 
 #define SEAGREEN_H
 #endif

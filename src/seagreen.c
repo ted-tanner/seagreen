@@ -182,6 +182,10 @@ void seagreen_free_rt(void) {
 }
 
 void async_yield(void) {
+    if (__cgn_curr_thread->disable_yield) {
+        return;
+    }
+
     __cgn_savectx(&__cgn_curr_thread->ctx);
 
     _Bool temp_yield_toggle = __cgn_curr_thread->yield_toggle;
