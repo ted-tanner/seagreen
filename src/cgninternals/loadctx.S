@@ -19,6 +19,8 @@ __CGN_LOADCTX_NAME:
     movq %r15, 40(%rdi)
     movq %rbx, 48(%rdi)
 
+    movq %rsi, %rdi
+
     ret
 
 #elif defined(__x86_64__) && defined(__WIN64__)
@@ -34,6 +36,8 @@ __CGN_LOADCTX_NAME:
     movq %r15, 40(%rcx)
     movq %rbx, 48(%rcx)
     movq %rdi, 56(%rcx)
+
+    movq %rdx, %rcx
 
     ret
 
@@ -57,6 +61,8 @@ __CGN_LOADCTX_NAME:
     ldr x28, [x0, 88]
     ldr x29, [x0, 96]
 
+    mov x0, x1
+
     ret
 
 #elif defined(__riscv__)
@@ -78,6 +84,8 @@ __CGN_LOADCTX_NAME:
     ld s9, 88(a0)
     ld s10, 96(a0)
     ld s11, 104(a0)
+
+    mv a0, a1
 
     ret
 

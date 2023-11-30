@@ -89,260 +89,232 @@ extern _Thread_local uint32_t __cgn_sched_thread_pos;
             return_val;                                             \
         })
 
-#define async_run(Fn)                                       \
-    _Generic(                                               \
-        (Fn),                                               \
-        char: ({                                            \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_char) {                    \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        signed char: ({                                     \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_signedchar) {              \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        unsigned char: ({                                   \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_unsignedchar) {            \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        short: ({                                           \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_short) {                   \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        unsigned short: ({                                  \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_unsignedshort) {           \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        int: ({                                             \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_int) {                     \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        unsigned int: ({                                    \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_unsignedint) {             \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        long: ({                                            \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_long) {                    \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        unsigned long: ({                                   \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_unsignedlong) {            \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        long long: ({                                       \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_longlong) {                \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        unsigned long long: ({                              \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_unsignedlonglong) {        \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        float: ({                                           \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_float) {                   \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        double: ({                                          \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_double) {                  \
-                    .id = t->id,                            \
-                };                                          \
-            }),                                             \
-        void *: ({                                          \
-                void *stack;                                \
-                __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                            \
-                __cgn_savenewctx(&t->ctx, stack);           \
-                                                            \
-                if (t == __cgn_curr_thread) {               \
-                    t->return_val = (uint64_t) Fn;          \
-                    t->state = __CGN_THREAD_STATE_DONE;     \
-                    __cgn_scheduler();                      \
-                    /* This should never be reached */      \
-                    assert(0);                              \
-                }                                           \
-                                                            \
-                (CGNThreadHandle_voidptr) {                 \
-                    .id = t->id,                            \
-                };                                          \
+#define async_run(Fn)                                               \
+    _Generic(                                                       \
+        (Fn),                                                       \
+        char: ({                                                    \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_char) { .id = t->id };             \
+            }),                                                     \
+        signed char: ({                                             \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_signedchar) { .id = t->id };       \
+            }),                                                     \
+        unsigned char: ({                                           \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_unsignedchar) { .id = t->id };     \
+            }),                                                     \
+        short: ({                                                   \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_short) { .id = t->id };            \
+            }),                                                     \
+        unsigned short: ({                                          \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_unsignedshort) { .id = t->id };    \
+            }),                                                     \
+        int: ({                                                     \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_int) { .id = t->id };              \
+            }),                                                     \
+        unsigned int: ({                                            \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_unsignedint) { .id = t->id };      \
+            }),                                                     \
+        long: ({                                                    \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_long) { .id = t->id };             \
+            }),                                                     \
+        unsigned long: ({                                           \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_unsignedlong) { .id = t->id };     \
+            }),                                                     \
+        long long: ({                                               \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_longlong) { .id = t->id };         \
+            }),                                                     \
+        unsigned long long: ({                                      \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_unsignedlonglong) { .id = t->id }; \
+            }),                                                     \
+        float: ({                                                   \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_float) { .id = t->id };            \
+            }),                                                     \
+        double: ({                                                  \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_double) { .id = t->id };           \
+            }),                                                     \
+        void *: ({                                                  \
+                void *stack;                                        \
+                __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                    \
+                t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                    \
+                if (t == __cgn_curr_thread) {                       \
+                    t->return_val = (uint64_t) Fn;                  \
+                    t->state = __CGN_THREAD_STATE_DONE;             \
+                    __cgn_scheduler();                              \
+                    /* This should never be reached */              \
+                    assert(0);                                      \
+                }                                                   \
+                                                                    \
+                (CGNThreadHandle_voidptr) { .id = t->id };          \
             }))
 
 #define run_as_sync(Fn)                                                 \

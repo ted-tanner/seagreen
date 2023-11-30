@@ -244,7 +244,7 @@ void __cgn_scheduler(void) {
                 // access to scheduler
                 ++__cgn_sched_thread_pos;
 
-                __cgn_loadctx(&staged_thread->ctx);
+                __cgn_loadctx(&staged_thread->ctx, staged_thread);
             }
 
             __cgn_sched_thread_pos = 0;

@@ -13,8 +13,8 @@
 
 .balign 4
 __CGN_SAVECTX_NAME:
-    movq %rbp, (%rdi)
-    movq %rsp, 8(%rdi)
+    movq %rsp, 0(%rdi)
+    movq %rbp, 8(%rdi)
 
     movq %r12, 16(%rdi)
     movq %r13, 24(%rdi)
@@ -26,7 +26,7 @@ __CGN_SAVECTX_NAME:
 
 .balign 4
 __CGN_SAVENEWCTX_NAME:
-    movq %rbp, (%rdi)
+    movq %rbp, 0(%rdi)
     movq %rsi, 8(%rdi)
 
     movq %r12, 16(%rdi)
@@ -35,13 +35,15 @@ __CGN_SAVENEWCTX_NAME:
     movq %r15, 40(%rdi)
     movq %rbx, 48(%rdi)
 
+    movq %rdx, %rdi
+
     ret
 
 #elif defined(__x86_64__) && defined(__WIN64__)
 
 .balign 4
 __CGN_SAVECTX_NAME:
-    movq %rsp, (%rcx)
+    movq %rsp, 0(%rcx)
     movq %rbp, 8(%rcx)
 
     movq %r12, 16(%rcx)
@@ -55,7 +57,7 @@ __CGN_SAVECTX_NAME:
 
 .balign 4
 __CGN_SAVENEWCTX_NAME:
-    movq %rdx, (%rcx)
+    movq %rdx, 0(%rcx)
     movq %rbp, 8(%rcx)
 
     movq %r12, 16(%rcx)
@@ -64,6 +66,8 @@ __CGN_SAVENEWCTX_NAME:
     movq %r15, 40(%rcx)
     movq %rbx, 48(%rcx)
     movq %rdi, 56(%rcx)
+
+    movq %r8, %rcx
 
     ret
         
@@ -106,6 +110,8 @@ __CGN_SAVENEWCTX_NAME:
     str x28, [x0, 88]
     str x29, [x0, 96]
 
+    mov x0, x2
+
     ret
 
 #elif defined(__riscv__)
@@ -147,6 +153,8 @@ __CGN_SAVENEWCTX_NAME:
     sd s9, 88(a0)
     sd s10, 96(a0)
     sd s11, 104(a0)
+
+    mv a0, a2
 
     ret
 

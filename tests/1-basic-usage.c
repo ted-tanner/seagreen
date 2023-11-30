@@ -104,7 +104,6 @@ int main(void) {
     return 0;
 }
 
-// TODO: Test sync_run
 // TODO: Test with recursive function
 // TODO: Test with stack exist=ing before seagreen_init_rt()
 // TODO: Test with a bunch of threads
