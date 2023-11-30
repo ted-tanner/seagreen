@@ -17,15 +17,14 @@ Some additional niceties of SeaGreen:
 
 ## The SeaGreen Pirate's Code (invariants/rules for using the library)
 
-* If ye call `async_yield()` in a function, ye must call that function using `async_run()` or ye shall walk the plank.
+* If ye call `async_yield()` in a function, ye mus' mark tha' function as `async` and call it only using `async_run()` or `run_as_sync()` or ye shall walk the plank.
 * If ye call `async_run()`, `run_as_sync()`, `await()`, or `async_yield()` without firs' callin' `seagreen_init_rt()`, ye shall walk the plank.
-* If ye call `async_yield()`, `run_as_sync()`, `await()`, or `async_yield()` after callin' `seagreen_free_rt()`, ye shall walk the plank.
-* If ye call a function that calls `async_yield()`, ye shall mark it as `async` or ye shall walk the plank.
+* If ye call `async_run()`, `run_as_sync()`, `await()`, or `async_yield()` after callin' `seagreen_free_rt()`, ye shall walk the plank.
 * If ye call a function that calls `async_yield()`, ye shall call it using `async_run()` or `run_as_sync()` or ye shall walk the plank.
 * If ye call `seagreen_free_rt()` from inside a green thread (not on the main thread where `seagreen_init_rt()` was called), ye shall be ignored.
 * If ye use SeaGreen expectin' it to not to allocate memory, ye shall walk the plank.
 
-If ye don' heed these warnin's, ye may be squacked at by Seggie the SegFault parrot or worse, cause undefined behavior on yon sea.
+If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault parrot or worse, cause undefined behavior on yon C.
 
 ## TODO
 
