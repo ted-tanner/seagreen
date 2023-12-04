@@ -6,10 +6,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "seagreen.h"
 
 #define FILE_COUNT 4096
+
+#define LOREM_IPSUM_COUNT 10000
 
 async int write_file(struct aiocb *aio) {
     aio_write(aio);
@@ -34,18 +37,20 @@ nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qu
 officia deserunt mollit anim id est laborum.";
 
     size_t lorem_ipsum_len = strlen(lorem_ipsum);
-    size_t extra_len = 10;  // 4-digit number + 5 linebreaks + null terminator
-    size_t data_len = lorem_ipsum_len * 2 + extra_len;
+    size_t extra_len = 2;  // 2 linebreaks per lorem ipsum
+    size_t data_len = lorem_ipsum_len + extra_len;
 
-    char *data_buf = (char *)malloc(data_len * FILE_COUNT);
+    size_t data_buf_len = data_len * LOREM_IPSUM_COUNT + 1; // add 1 for null terminator
+    char *data_buf = (char *)malloc(data_buf_len);
+
+    for (int i = 0; i < LOREM_IPSUM_COUNT; ++i) {
+        sprintf(data_buf + data_len * i, "%s\n\n", lorem_ipsum);
+    }
 
     struct aiocb *aio_list =
         (struct aiocb *)malloc(FILE_COUNT * sizeof(struct aiocb));
 
     for (int i = 0; i < FILE_COUNT; ++i) {
-        char *pos = data_buf + data_len * i;
-
-        sprintf(pos, "%d\n\n%s\n\n%s\n", i + 1000, lorem_ipsum, lorem_ipsum);
         sprintf(file_name, "./out/file-%d.txt", i + 1000);
 
         int fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, 0644);
@@ -59,8 +64,8 @@ officia deserunt mollit anim id est laborum.";
         aio_list[i] = (struct aiocb) {
             .aio_fildes = fd,
             .aio_offset = 0,
-            .aio_buf = pos,
-            .aio_nbytes = data_len - 1, // Exclude null terminator
+            .aio_buf = data_buf,
+            .aio_nbytes = data_buf_len - 1, // Exclude null terminator
             .aio_reqprio = 0,
             .aio_sigevent.sigev_notify = SIGEV_NONE,
             .aio_lio_opcode = LIO_WRITE,
@@ -74,6 +79,8 @@ officia deserunt mollit anim id est laborum.";
     seagreen_init_rt();
 
     printf("Writing files...\n");
+
+    clock_t start = clock();
     for (int i = 0; i < FILE_COUNT; ++i) {
         handles[i] = async_run(write_file(&aio_list[i]));
     }
@@ -86,7 +93,12 @@ officia deserunt mollit anim id est laborum.";
             exit(EXIT_FAILURE);
         }
     }
+    clock_t diff = clock() - start;
+
     printf("Done.\n");
+
+    int msec = diff * 1000 / CLOCKS_PER_SEC;
+    printf("Write took %d.%d seconds\n", msec / 1000, msec % 1000);
 
     seagreen_free_rt();
 

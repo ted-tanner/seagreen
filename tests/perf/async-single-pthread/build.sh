@@ -35,7 +35,7 @@ OUTPUT_FILE_DIR=./out
 mkdir -p $OUTPUT_FILE_DIR
 
 INCLUDE_DIR=../../../include
-SRC_FILES="main.c $SEAGREEN_DIR/target/seagreenlib.a"
+SRC_FILES="main.c $SEAGREEN_DIR/target/libseagreen.a"
 
 if [[ !($1 = "clean" || $1 = "run" || $1 = "release" || $1 = "") ]]; then
     echo "Usage: ./$(basename $0) <clean|run|release>"

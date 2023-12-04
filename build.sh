@@ -12,7 +12,7 @@ if [[ $OPT_LEVEL = "" ]]; then
     elif [[ $1 = "test" && $2 = "release" ]]; then
         OPT_LEVEL=O3
     else
-        OPT_LEVEL=O1
+        OPT_LEVEL=O0
     fi
 fi
 

@@ -307,7 +307,7 @@ __CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack) {
     ++block->used_thread_count;
 
     uint64_t stack_plus_guard_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
-    *stack = block->stacks + (pos + 1) * stack_plus_guard_size;
+    *stack = block->stacks + (pos + 1) * stack_plus_guard_size + SEAGREEN_MAX_STACK_SIZE;
 
     return t;
 }
