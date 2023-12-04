@@ -1,7 +1,7 @@
 #if defined(__WIN64__) || defined(__APPLE__)
 #define __CGN_SAVECTX_NAME ___cgn_savectx
 #define __CGN_SAVENEWCTX_NAME ___cgn_savenewctx
-#elif
+#else
 #define __CGN_SAVECTX_NAME __cgn_savectx
 #define __CGN_SAVENEWCTX_NAME __cgn_savenewctx
 #endif

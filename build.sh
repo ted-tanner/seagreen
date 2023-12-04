@@ -18,15 +18,15 @@ fi
 
 if [[ $CC_FLAGS = "" ]]; then
     if [[ $1 = "release" ]]; then
-        CC_FLAGS="-Wall -Wextra -std=c11 -std=gnu2x -DNDEBUG"
+        CC_FLAGS=" -Wall -Wextra -std=c11 -std=gnu2x -DNDEBUG -Wno-unused-command-line-argument -fvisibility=hidden"
     else
-        CC_FLAGS="-Wall -Wextra -std=c11 -std=gnu2x -g"
+        CC_FLAGS=" -Wall -Wextra -std=c11 -std=gnu2x -g -Wno-unused-command-line-argument -fvisibility=hidden"
     fi
 fi
 
 
-OUT_DIR=./target
-LIB_NAME=seagreenlib
+TARGET_DIR=./target
+LIB_NAME=libseagreen
 
 SRC_DIR=./src
 INCLUDE_DIR=./include
@@ -44,7 +44,7 @@ if [[ !($1 = "clean" || $1 = "test" || $1 = "release" || $1 = "") ]]; then
 fi
 
 if [[ $1 = "clean" ]]; then
-    rm -rf $OUT_DIR
+    rm -rf $TARGET_DIR
     exit 0
 fi
 
@@ -55,14 +55,14 @@ function build_objs {
         MACROS=""
     fi
 
-    OUT="$OUT_DIR"
+    OUT="$TARGET_DIR"
     mkdir -p $OUT
 
     for FILE in $SRC_FILES; do
         FNAME=$(basename $FILE)
         FILE_NO_EXT="${FNAME%.*}"
         OBJ=" $OUT/$FILE_NO_EXT.o"
-        (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $CC_FLAGS -c $FILE -o $OBJ -I$INCLUDE_DIR) || exit 1
+        (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $CC_FLAGS -fPIC -c $FILE -o $OBJ -I$INCLUDE_DIR) || exit 1
 
         if [[ $? -ne 0 ]]; then
             exit 1
@@ -78,16 +78,16 @@ function file_to_test_name {
 }
 
 function build_test {
-    TEST_OUT="$OUT_DIR/tests"
+    TEST_OUT="$TARGET_DIR/tests"
 
-    FILES="$OUT_DIR/$LIB_NAME.a $1"
+    FILES="$TARGET_DIR/$LIB_NAME.a $1"
     MACROS="-DCGN_DEBUG"
 
     OUT_FILE=$TEST_OUT/$(file_to_test_name $1)
 
     mkdir -p $TEST_OUT
 
-    (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $CC_FLAGS $FILES -o $OUT_FILE -I$INCLUDE_DIR)
+    (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $CC_FLAGS $FILES -o $OUT_FILE -I$INCLUDE_DIR -L$TARGET_DIR -lseagreen)
 }
 
 build_objs $1 &&
@@ -105,7 +105,7 @@ if [[ $1 = "test" ]]; then
 
     for TEST_NAME in $TEST_NAMES; do
         echo "\n----- Running test: $TEST_NAME -----\n"
-        time $OUT_DIR/tests/$TEST_NAME
+        time $TARGET_DIR/tests/$TEST_NAME
 
         if [[ $? -eq 0 ]]; then
             SUCCESS_COUNT=$((SUCCESS_COUNT + 1))

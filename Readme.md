@@ -2,15 +2,15 @@
 
 # SeaGreen (seagreenlib)
 
+**WARNING: SeaGreen has been tested in a very limited set of environments. There are likely bugs that will cause unsoundness in untested environments.**
+
 An easy-to-use green threading library ~~for Sea~~ for C.
 
 ## How does SeaGreen work? Why use SeaGreen?
 
 SeaGreen uses [coroutines](https://en.wikipedia.org/wiki/Coroutine) to change program flow in an intuitive way that allows blocking tasks (such as disk or network IO) to be performed asynchronously on a single OS thread. A simple and efficient scheduler manages "green threads"--lightweight subroutines that execute concurrently on a single OS thread. The performance and memory cost of managing and switching between green threads is orders of magnitude smaller than the penalty that is paid to have the OS manage those threads.
 
-SeaGreen can operate in two modes. The default mode guaruntees that green threads are always scheduled on the same OS thread they were launched from, thus eliminating the need to use expensive synchronization primitives such as locks and atomics that complicate programming. The second mode allows green threads to be scheduled across a configurable number of OS threads. In practice, green threads will usualy still run on the same OS thread they were launched from even in the second mode (switching a green thread to a new OS thread can be costly), but this second mode gives SeaGreen the ability to multiplex threads across multiple OS threads if any one OS thread becomes overburdened.
-
-Some additional niceties of SeaGreen:
+Some niceties of SeaGreen:
 
 * No [function coloring](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/) difficulties. Green threads may be launched from anywhere in your program, making it super easy to integrate seagreenlib into existing codebases.
 * SeaGreen is intuitive to use and won't turn your existing code into spaghetti.

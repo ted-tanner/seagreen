@@ -9,7 +9,7 @@
 
 #include "seagreen.h"
 
-#define FILE_COUNT 1024
+#define FILE_COUNT 4096
 
 async int write_file(struct aiocb *aio) {
     aio_write(aio);
@@ -22,6 +22,8 @@ async int write_file(struct aiocb *aio) {
 }
 
 int main(void) {
+    printf("Preparing data...\n");
+
     char file_name[32];
     char *lorem_ipsum =
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod \
@@ -68,8 +70,10 @@ officia deserunt mollit anim id est laborum.";
     struct CGNThreadHandle_int *handles =
         (struct CGNThreadHandle_int *)malloc(FILE_COUNT * sizeof(struct CGNThreadHandle_int));
 
+    printf("Initializing SeaGreen runtime...\n");
     seagreen_init_rt();
 
+    printf("Writing files...\n");
     for (int i = 0; i < FILE_COUNT; ++i) {
         handles[i] = async_run(write_file(&aio_list[i]));
     }
@@ -82,6 +86,7 @@ officia deserunt mollit anim id est laborum.";
             exit(EXIT_FAILURE);
         }
     }
+    printf("Done.\n");
 
     seagreen_free_rt();
 

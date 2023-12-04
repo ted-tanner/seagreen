@@ -109,7 +109,7 @@ static __CGNThreadBlock *add_block(void) {
     return block;
 }
 
-void seagreen_init_rt(void) {
+__CGN_EXPORT void seagreen_init_rt(void) {
     if (__cgn_threadlist.head) {
         // No need to initialize if already initialized
         return;
@@ -142,7 +142,7 @@ void seagreen_init_rt(void) {
     block->used_thread_count = 1;
 }
 
-void seagreen_free_rt(void) {
+__CGN_EXPORT void seagreen_free_rt(void) {
     if (!__cgn_threadlist.head) {
         // No need to deinitialize if not already initialized
         return;
@@ -181,7 +181,7 @@ void seagreen_free_rt(void) {
     __cgn_sched_thread_pos = 0;
 }
 
-void async_yield(void) {
+__CGN_EXPORT void async_yield(void) {
     if (__cgn_curr_thread->disable_yield) {
         return;
     }
@@ -196,7 +196,7 @@ void async_yield(void) {
     }
 }
 
-void __cgn_scheduler(void) {
+__CGN_EXPORT void __cgn_scheduler(void) {
     while (1) {
         for (; __cgn_sched_block; __cgn_sched_block = __cgn_sched_block->next, ++__cgn_sched_block_pos) {
             if (!__cgn_sched_block->used_thread_count) {
@@ -255,7 +255,7 @@ void __cgn_scheduler(void) {
     }
 }
 
-inline __CGNThreadBlock *__cgn_get_block(uint32_t id) {
+__CGN_EXPORT inline __CGNThreadBlock *__cgn_get_block(uint32_t id) {
     __CGNThreadBlock *block;
 
     uint32_t block_pos = id / __CGN_THREAD_BLOCK_SIZE;
@@ -271,12 +271,12 @@ inline __CGNThreadBlock *__cgn_get_block(uint32_t id) {
     return block;
 }
 
-inline __CGNThread *__cgn_get_thread(uint32_t id) {
+__CGN_EXPORT inline __CGNThread *__cgn_get_thread(uint32_t id) {
     __CGNThreadBlock *block = __cgn_get_block(id);
     return &block->threads[id % __CGN_THREAD_BLOCK_SIZE];
 }
 
-__CGNThread *__cgn_add_thread(void **stack) {
+__CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack) {
     __CGNThreadBlock *block = __cgn_threadlist.tail;
 
     uint32_t block_pos = __cgn_threadlist.block_count - 1;
@@ -312,7 +312,7 @@ __CGNThread *__cgn_add_thread(void **stack) {
     return t;
 }
 
-void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos) {
+__CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos) {
     __CGNThread *t = &block->threads[pos];
 
     *t = (__CGNThread){0};

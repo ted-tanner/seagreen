@@ -24,6 +24,8 @@
 void print_threads(void);
 #endif
 
+#define __CGN_EXPORT __attribute__((visibility("default")))
+
 #if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
 
 typedef struct __CGNThreadCtx_ {
@@ -175,9 +177,9 @@ typedef struct __CGNThreadList_ {
 
 // Two of these functions return the thread pointer such that it is available when
 // the thread is resumed and the stack may have changed.
-extern __attribute__((noinline)) __CGNThread *__cgn_loadctx(__CGNThreadCtx *ctx, __CGNThread *t);
-extern __attribute__((noinline)) void __cgn_savectx(__CGNThreadCtx *ctx);
-extern __attribute__((noinline)) __CGNThread *__cgn_savenewctx(__CGNThreadCtx *ctx, void *stack, __CGNThread *t);
+extern __CGN_EXPORT __attribute__((noinline)) __CGNThread *__cgn_loadctx(__CGNThreadCtx *ctx, __CGNThread *t);
+extern __CGN_EXPORT __attribute__((noinline)) void __cgn_savectx(__CGNThreadCtx *ctx);
+extern __CGN_EXPORT __attribute__((noinline)) __CGNThread *__cgn_savenewctx(__CGNThreadCtx *ctx, void *stack, __CGNThread *t);
 
 // mmap returns -1 on error, check ptr < 1 rather than !ptr
 #define __cgn_check_malloc(ptr)                         \
@@ -190,17 +192,17 @@ extern __attribute__((noinline)) __CGNThread *__cgn_savenewctx(__CGNThreadCtx *c
 // untouched
 #define SEAGREEN_MAX_STACK_SIZE 1024 * 1024 * 2 // 2 MB
 
-void seagreen_init_rt(void);
-void seagreen_free_rt(void);
-void async_yield(void);
+__CGN_EXPORT void seagreen_init_rt(void);
+__CGN_EXPORT void seagreen_free_rt(void);
+__CGN_EXPORT void async_yield(void);
 
-void __cgn_scheduler(void);
+__CGN_EXPORT void __cgn_scheduler(void);
 
-__CGNThreadBlock *__cgn_get_block(uint32_t id);
-__CGNThread *__cgn_get_thread(uint32_t id);
-__CGNThread *__cgn_get_thread_by_block(__CGNThreadBlock *block, uint32_t pos);
-__CGNThread *__cgn_add_thread(void **stack);
-void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
+__CGN_EXPORT __CGNThreadBlock *__cgn_get_block(uint32_t id);
+__CGN_EXPORT __CGNThread *__cgn_get_thread(uint32_t id);
+__CGN_EXPORT __CGNThread *__cgn_get_thread_by_block(__CGNThreadBlock *block, uint32_t pos);
+__CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack);
+__CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
 
 #define async __attribute__((noinline))
 

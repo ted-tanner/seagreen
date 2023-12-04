@@ -22,14 +22,20 @@ if [[ $CC_FLAGS = "" ]]; then
     fi
 fi
 
-OUT_DIR=./target
-OUT_FILE=$OUT_DIR/async-single-pthread.out
+SEAGREEN_DIR=../../..
+PREV_DIR=$(pwd)
+cd $SEAGREEN_DIR
+./build.sh release
+cd $PREV_DIR
+
+TARGET_DIR=./target
+OUT_FILE=$TARGET_DIR/async-single-pthread.out
 
 OUTPUT_FILE_DIR=./out
 mkdir -p $OUTPUT_FILE_DIR
 
 INCLUDE_DIR=../../../include
-SRC_FILES="main.c ../../../target/seagreenlib.a"
+SRC_FILES="main.c $SEAGREEN_DIR/target/seagreenlib.a"
 
 if [[ !($1 = "clean" || $1 = "run" || $1 = "release" || $1 = "") ]]; then
     echo "Usage: ./$(basename $0) <clean|run|release>"
@@ -37,7 +43,7 @@ if [[ !($1 = "clean" || $1 = "run" || $1 = "release" || $1 = "") ]]; then
 fi
 
 if [[ $1 = "clean" ]]; then
-    rm -rf $OUT_DIR
+    rm -rf $TARGET_DIR
     rm -rf $OUTPUT_FILE_DIR
     exit 0
 fi
@@ -49,7 +55,7 @@ function build_objs {
         MACROS="-DCGN_DEBUG"
     fi
 
-    mkdir -p $OUT_DIR
+    mkdir -p $TARGET_DIR
 
     (PS4="\000" set -x; $CC -$OPT_LEVEL $MACROS $CC_FLAGS $SRC_FILES -o $OUT_FILE -I$INCLUDE_DIR) || exit 1
 }

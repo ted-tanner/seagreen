@@ -1,6 +1,6 @@
 #if defined(__WIN64__) || defined(__APPLE__)
 #define __CGN_LOADCTX_NAME ___cgn_loadctx
-#elif
+#else
 #define __CGN_LOADCTX_NAME __cgn_loadctx
 #endif
 
