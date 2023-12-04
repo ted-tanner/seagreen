@@ -16,7 +16,7 @@ int main(void) {
     seagreen_init_rt();
 
     printf("Starting foo()...\n");
-    struct CGNThreadHandle_int handle = async_run(foo());
+    struct CGNThreadHandle handle = async_run(foo());
 
     // Awaiting multiple times doesn't cause issues
     printf("Awaiting...\n");

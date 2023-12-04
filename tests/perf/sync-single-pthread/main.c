@@ -14,7 +14,7 @@
 int main(void) {
     printf("Preparing data...\n");
 
-        char file_name[32];
+    char file_name[32];
     char *lorem_ipsum =
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod \
 tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis \

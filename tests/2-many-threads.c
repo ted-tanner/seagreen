@@ -28,8 +28,8 @@ int main(void) {
     printf("Initializing runtime...\n");
     seagreen_init_rt();
 
-    struct CGNThreadHandle_int *handles =
-        (struct CGNThreadHandle_int *)malloc(sizeof(struct CGNThreadHandle_int) * THREAD_COUNT);
+    struct CGNThreadHandle *handles =
+        (struct CGNThreadHandle *)malloc(sizeof(struct CGNThreadHandle) * THREAD_COUNT);
 
     printf("Starting %d threads...\n", THREAD_COUNT);
     for (int i = 0; i < THREAD_COUNT; ++i) {

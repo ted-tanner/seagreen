@@ -72,8 +72,8 @@ officia deserunt mollit anim id est laborum.";
         };
     }
 
-    struct CGNThreadHandle_int *handles =
-        (struct CGNThreadHandle_int *)malloc(FILE_COUNT * sizeof(struct CGNThreadHandle_int));
+    struct CGNThreadHandle *handles =
+        (struct CGNThreadHandle *)malloc(FILE_COUNT * sizeof(struct CGNThreadHandle));
 
     printf("Initializing SeaGreen runtime...\n");
     seagreen_init_rt();
