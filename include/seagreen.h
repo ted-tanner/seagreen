@@ -1,5 +1,10 @@
 #ifndef SEAGREEN_H
 
+#if !defined(__x86_64__) && !defined(__aarch64__) && !defined(__riscv__)
+#error "seagreenlib does not support this architecture"
+#endif
+
+
 #if !defined __GNUC__ && !defined __clang__
 #warning "seagreenlib only officially supports the GCC and Clang compilers"
 #endif
@@ -92,25 +97,7 @@ typedef struct __CGNThreadCtx_ {
     uint64_t s11;
 } __CGNThreadCtx;
 
-#else
-
-#error "seagreenlib does not support this architecture"
-
 #endif
-
-// Macros that typedef don't support spaces in type names
-typedef signed char signedchar;
-typedef unsigned char unsignedchar;
-typedef unsigned short unsignedshort;
-typedef unsigned int unsignedint;
-typedef unsigned long unsignedlong;
-typedef long long longlong;
-typedef unsigned long long unsignedlonglong;
-typedef void *voidptr;
-
-struct CGNThreadHandle {
-    uint64_t id;
-};
 
 typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
     __CGN_THREAD_STATE_READY,
@@ -127,8 +114,8 @@ typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
 // for performance here.
 typedef struct __CGNThread_ {
     uint32_t id;
-    __CGNThreadState state;
 
+    __CGNThreadState state;
     _Bool yield_toggle;
     _Bool disable_yield;
     _Bool in_use;
@@ -172,6 +159,8 @@ extern __CGN_EXPORT __attribute__((noinline)) __CGNThread *__cgn_savenewctx(__CG
         abort();                                        \
     }
 
+typedef uint64_t CGNThreadHandle;
+
 // The stack space allocated for each thread. Many of these pages will remain
 // untouched
 #define SEAGREEN_MAX_STACK_SIZE 1024 * 1024 * 2 // 2 MB
@@ -202,11 +191,11 @@ extern _Thread_local uint32_t __cgn_sched_block_pos;
 extern _Thread_local uint32_t __cgn_sched_thread_pos;
 
 #define await(handle) ({                                            \
-            __cgn_curr_thread->awaited_thread_id = (handle).id;     \
+            __cgn_curr_thread->awaited_thread_id = (handle);        \
             __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;  \
                                                                     \
-            uint32_t pos = (handle).id % __CGN_THREAD_BLOCK_SIZE;   \
-            __CGNThreadBlock *block = __cgn_get_block((handle).id); \
+            uint32_t pos = handle % __CGN_THREAD_BLOCK_SIZE;        \
+            __CGNThreadBlock *block = __cgn_get_block(handle);      \
                                                                     \
             __CGNThread *t = &block->threads[pos];                  \
             uint64_t return_val = 0;                                \
@@ -218,7 +207,7 @@ extern _Thread_local uint32_t __cgn_sched_thread_pos;
                 /* finished its execution */                        \
                 async_yield();                                      \
                                                                     \
-                return_val = t->return_val;                         \
+                return_val = (uint64_t) t->return_val;              \
                 if (!t->awaiting_thread_count) {                    \
                     __cgn_remove_thread(block, pos);                \
                 }                                                   \
@@ -241,15 +230,15 @@ extern _Thread_local uint32_t __cgn_sched_thread_pos;
                 assert(0);                              \
             }                                           \
                                                         \
-            (struct CGNThreadHandle) { .id = t->id };   \
+            (CGNThreadHandle) t->id;                    \
         })
 
-#define run_as_sync(Fn)                                                 \
-    ({                                                                  \
-        __cgn_curr_thread->disable_yield = 1;                           \
-        typeof(Fn) retval = Fn;                                         \
-        __cgn_curr_thread->disable_yield = 0;                           \
-        retval;                                                         \
+#define run_as_sync(Fn)                         \
+    ({                                          \
+        __cgn_curr_thread->disable_yield = 1;   \
+        uint64_t retval = Fn;                   \
+        __cgn_curr_thread->disable_yield = 0;   \
+        retval;                                 \
     })
 
 #define SEAGREEN_H

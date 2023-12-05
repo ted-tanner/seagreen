@@ -19,6 +19,7 @@ Some niceties of SeaGreen:
 
 * If ye call `async_yield()` in a function, ye mus' mark tha' function as `async` and call it only using `async_run()` or `run_as_sync()` or ye shall walk the plank.
 * If ye call `async_run()`, `run_as_sync()`, `await()`, or `async_yield()` without firs' callin' `seagreen_init_rt()` or after callin’ `seagreen_free_rt()`, ye shall walk the plank.
+* Functions called with `async_run()` may only return values that are 8 bytes (or more wee).
 * If ye call `seagreen_free_rt()` from inside a green thread (not on the main thread where `seagreen_init_rt()` was called), ye shall be ignored.
 * If ye use SeaGreen expectin' it to not to allocate memory, ye shall walk the plank.
 

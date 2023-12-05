@@ -1,18 +1,20 @@
 #if defined(__WIN64__) || defined(__APPLE__)
-#define __CGN_SAVECTX_NAME ___cgn_savectx
-#define __CGN_SAVENEWCTX_NAME ___cgn_savenewctx
+#define __CGN_SAVECTX_SYMBOL ___cgn_savectx
+#define __CGN_SAVENEWCTX_SYMBOL ___cgn_savenewctx
 #else
-#define __CGN_SAVECTX_NAME __cgn_savectx
-#define __CGN_SAVENEWCTX_NAME __cgn_savenewctx
+#define __CGN_SAVECTX_SYMBOL __cgn_savectx
+#define __CGN_SAVENEWCTX_SYMBOL __cgn_savenewctx
 #endif
 
-.globl __CGN_SAVECTX_NAME
-.globl __CGN_SAVENEWCTX_NAME    
+.globl __CGN_SAVECTX_SYMBOL
+.globl __CGN_SAVENEWCTX_SYMBOL    
 
 #if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
 
+    // TODO
+
 .balign 4
-__CGN_SAVECTX_NAME:
+__CGN_SAVECTX_SYMBOL:
     movq %rsp, 0(%rdi)
     movq %rbp, 8(%rdi)
 
@@ -25,7 +27,7 @@ __CGN_SAVECTX_NAME:
     ret
 
 .balign 4
-__CGN_SAVENEWCTX_NAME:
+__CGN_SAVENEWCTX_SYMBOL:
     movq %rbp, 0(%rdi)
     movq %rsi, 8(%rdi)
 
@@ -41,8 +43,10 @@ __CGN_SAVENEWCTX_NAME:
 
 #elif defined(__x86_64__) && defined(__WIN64__)
 
+    // TODO
+
 .balign 4
-__CGN_SAVECTX_NAME:
+__CGN_SAVECTX_SYMBOL:
     movq %rsp, 0(%rcx)
     movq %rbp, 8(%rcx)
 
@@ -56,7 +60,7 @@ __CGN_SAVECTX_NAME:
     ret
 
 .balign 4
-__CGN_SAVENEWCTX_NAME:
+__CGN_SAVENEWCTX_SYMBOL:
     movq %rdx, 0(%rcx)
     movq %rbp, 8(%rcx)
 
@@ -74,7 +78,7 @@ __CGN_SAVENEWCTX_NAME:
 #elif defined(__aarch64__)
 
 .balign 4
-__CGN_SAVECTX_NAME:
+__CGN_SAVECTX_SYMBOL:
     str lr, [x0, 0]
     mov x9, sp
     str x9, [x0, 8] 
@@ -94,7 +98,7 @@ __CGN_SAVECTX_NAME:
     ret
 
 .balign 4
-__CGN_SAVENEWCTX_NAME:
+__CGN_SAVENEWCTX_SYMBOL:
     str lr, [x0, 0]
     str x1, [x0, 8] 
 
@@ -116,8 +120,10 @@ __CGN_SAVENEWCTX_NAME:
 
 #elif defined(__riscv__)
 
+// TODO
+
 .balign 4
-__CGN_SAVECTX_NAME:
+__CGN_SAVECTX_SYMBOL:
     sd ra, 0(a0)
     sd sp, 8(a0)
 
@@ -137,7 +143,7 @@ __CGN_SAVECTX_NAME:
     ret
 
 .balign 4
-__CGN_SAVENEWCTX_NAME:
+__CGN_SAVENEWCTX_SYMBOL:
     sd ra, 0(a0)
     sd a1, 8(a0)
 

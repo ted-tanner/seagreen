@@ -32,7 +32,7 @@ static char *state_to_name(__CGNThreadState state) {
 void print_threads(void) {
     uint64_t i = 0;
     printf("\n------------------------------------\n");
-    printf("%u threads:\n\n", __cgn_threadlist.thread_count);
+    printf("%u thread(s):\n\n", __cgn_threadlist.thread_count);
     for (__CGNThreadBlock *block = __cgn_threadlist.head; block;
          block = block->next, ++i) {
         for (uint64_t pos = 0; pos < __CGN_THREAD_BLOCK_SIZE; ++pos) {
@@ -42,9 +42,9 @@ void print_threads(void) {
             if (thread->in_use) {
                 __CGNThread *thread = &block->threads[pos];
                 printf("thread %u:\n\tstate: %s\n\tawaiting: %u\n\tawait count: "
-                       "%u\n\treturn_val as int: %d\n\tptr: %p\n\n",
+                       "%u\n\tptr: %p\n\n",
                        id, state_to_name(thread->state), thread->awaited_thread_id,
-                       thread->awaiting_thread_count, (int)thread->return_val, thread);
+                       thread->awaiting_thread_count, thread);
             }
         }
     }

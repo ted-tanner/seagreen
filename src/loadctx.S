@@ -1,15 +1,17 @@
 #if defined(__WIN64__) || defined(__APPLE__)
-#define __CGN_LOADCTX_NAME ___cgn_loadctx
+#define __CGN_LOADCTX_SYMBOL ___cgn_loadctx
 #else
-#define __CGN_LOADCTX_NAME __cgn_loadctx
+#define __CGN_LOADCTX_SYMBOL __cgn_loadctx
 #endif
 
-.globl __CGN_LOADCTX_NAME
+.globl __CGN_LOADCTX_SYMBOL
 
 #if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
 
+    // TODO 
+
 .balign 4
-__CGN_LOADCTX_NAME:
+__CGN_LOADCTX_SYMBOL:
     movq %rbp, (%rdi)
     movq %rsp, 8(%rdi)
 
@@ -25,8 +27,10 @@ __CGN_LOADCTX_NAME:
 
 #elif defined(__x86_64__) && defined(__WIN64__)
 
+    // TODO
+
 .balign 4
-__CGN_LOADCTX_NAME:
+__CGN_LOADCTX_SYMBOL:
     movq %rbp, (%rcx)
     movq %rsp, 8(%rcx)
 
@@ -44,7 +48,7 @@ __CGN_LOADCTX_NAME:
 #elif defined(__aarch64__)
 
 .balign 4
-__CGN_LOADCTX_NAME:
+__CGN_LOADCTX_SYMBOL:
     ldr lr, [x0, 0]
     ldr x9, [x0, 8]
     mov sp, x9
@@ -67,8 +71,10 @@ __CGN_LOADCTX_NAME:
 
 #elif defined(__riscv__)
 
+    // TODO
+
 .balign 4
-__CGN_LOADCTX_NAME:
+__CGN_LOADCTX_SYMBOL:
     ld ra, 0(a0)
     ld sp, 8(a0)
 

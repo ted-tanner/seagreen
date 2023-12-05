@@ -18,9 +18,9 @@ fi
 
 if [[ $CC_FLAGS = "" ]]; then
     if [[ $1 = "release" ]]; then
-        CC_FLAGS=" -Wall -Wextra -std=c11 -std=gnu2x -DNDEBUG -Wno-unused-command-line-argument -fvisibility=hidden"
+        CC_FLAGS="-Wall -Wextra -std=c11 -DNDEBUG -Wno-unused-command-line-argument -fvisibility=hidden"
     else
-        CC_FLAGS=" -Wall -Wextra -std=c11 -std=gnu2x -g -Wno-unused-command-line-argument -fvisibility=hidden"
+        CC_FLAGS="-Wall -Wextra -std=c11 -g -Wno-unused-command-line-argument -fvisibility=hidden"
     fi
 fi
 

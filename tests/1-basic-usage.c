@@ -71,10 +71,10 @@ int main(void) {
     seagreen_init_rt();
 
     printf("Starting foo()...\n");
-    struct CGNThreadHandle t1 = async_run(foo(1, 2));
+    CGNThreadHandle t1 = async_run(foo(1, 2));
 
     printf("Starting bar()...\n");
-    struct CGNThreadHandle t2 = async_run(bar(3));
+    CGNThreadHandle t2 = async_run(bar(3));
 
     printf("Awaiting...\n");
 
