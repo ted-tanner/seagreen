@@ -179,16 +179,7 @@ __CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
 
 #define async __attribute__((noinline))
 
-extern _Thread_local int __cgn_pagesize;
-
-extern _Thread_local __CGNThreadList __cgn_threadlist;
-
 extern _Thread_local __CGNThread *__cgn_curr_thread;
-extern _Thread_local __CGNThread *__cgn_main_thread;
-
-extern _Thread_local __CGNThreadBlock *__cgn_sched_block;
-extern _Thread_local uint32_t __cgn_sched_block_pos;
-extern _Thread_local uint32_t __cgn_sched_thread_pos;
 
 #define await(handle) ({                                            \
             __cgn_curr_thread->awaited_thread_id = (handle);        \
