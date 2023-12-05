@@ -10,7 +10,7 @@
 
 #include "seagreen.h"
 
-#define FILE_COUNT 4096
+#define FILE_COUNT 2048
 
 #define LOREM_IPSUM_COUNT 10000
 
@@ -80,7 +80,9 @@ officia deserunt mollit anim id est laborum.";
 
     printf("Writing files...\n");
 
-    clock_t start = clock();
+    struct timespec start, end;
+    clock_gettime(CLOCK_REALTIME, &start);
+
     for (int i = 0; i < FILE_COUNT; ++i) {
         handles[i] = async_run(write_file(&aio_list[i]));
     }
@@ -93,12 +95,20 @@ officia deserunt mollit anim id est laborum.";
             exit(EXIT_FAILURE);
         }
     }
-    clock_t diff = clock() - start;
+
+    clock_gettime(CLOCK_REALTIME, &end);
 
     printf("Done.\n");
 
-    int msec = diff * 1000 / CLOCKS_PER_SEC;
-    printf("Write took %d.%d seconds\n", msec / 1000, msec % 1000);
+    signed long long nsec_diff = end.tv_nsec - start.tv_nsec;
+    signed long long sec_diff = end.tv_sec - start.tv_sec;
+
+    if (nsec_diff < 0) {
+        nsec_diff += 1000000000;
+        sec_diff -= 1;
+    }
+
+    printf("Write took %lld.%lld seconds\n", sec_diff, nsec_diff / 1000000);
 
     seagreen_free_rt();
 
