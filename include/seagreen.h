@@ -168,6 +168,7 @@ typedef uint64_t CGNThreadHandle;
 __CGN_EXPORT void seagreen_init_rt(void);
 __CGN_EXPORT void seagreen_free_rt(void);
 __CGN_EXPORT void async_yield(void);
+__CGN_EXPORT uint64_t await(CGNThreadHandle handle);
 
 __CGN_EXPORT void __cgn_scheduler(void);
 
@@ -180,32 +181,6 @@ __CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
 #define async __attribute__((noinline))
 
 extern _Thread_local __CGNThread *__cgn_curr_thread;
-
-#define await(handle) ({                                            \
-            __cgn_curr_thread->awaited_thread_id = (handle);        \
-            __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;  \
-                                                                    \
-            uint32_t pos = handle % __CGN_THREAD_BLOCK_SIZE;        \
-            __CGNThreadBlock *block = __cgn_get_block(handle);      \
-                                                                    \
-            __CGNThread *t = &block->threads[pos];                  \
-            uint64_t return_val = 0;                                \
-            if (t->in_use) {                                        \
-                t->awaiting_thread_count++;                         \
-                                                                    \
-                /* Because thread is waiting, the curr thread */    \
-                /* won't be scheduled until awaited thread has */   \
-                /* finished its execution */                        \
-                async_yield();                                      \
-                                                                    \
-                return_val = (uint64_t) t->return_val;              \
-                if (!t->awaiting_thread_count) {                    \
-                    __cgn_remove_thread(block, pos);                \
-                }                                                   \
-            }                                                       \
-                                                                    \
-            return_val;                                             \
-        })
 
 #define async_run(Fn) ({                                \
             void *stack;                                \
