@@ -13,6 +13,12 @@ _Thread_local uint32_t __cgn_sched_block_pos = 0;
 _Thread_local uint32_t __cgn_sched_thread_pos = 0;
 
 #ifdef CGN_DEBUG
+#define CGN_DBG(...) printf(__VA_ARGS__)
+#else
+#define CGN_DBG(...)
+#endif
+
+#ifdef CGN_DEBUG
 
 static char *state_to_name(__CGNThreadState state) {
     switch (state) {
@@ -75,18 +81,18 @@ static __CGNThreadBlock *add_block(void) {
         // Add __cgn_pagesize to offset to put guard page at end of stack, with the stack
         // growing downward
         uint64_t offset = (i * stack_plus_guard_size) + __cgn_pagesize;
-        mprotect(stacks + offset, SEAGREEN_MAX_STACK_SIZE, PROT_READ | PROT_WRITE);
+        mprotect((char *)stacks + offset, SEAGREEN_MAX_STACK_SIZE, PROT_READ | PROT_WRITE);
     }
 #else
     void *stacks =
-        VirtualAlloc(0, alloc_size, MEM_RESERVE | MEM_COMMIT, PAGE_GUARD);
+        VirtualAlloc(0, alloc_size, MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS);
     __cgn_check_malloc(stacks);
 
     for (uint64_t i = 0; i < __CGN_THREAD_BLOCK_SIZE; ++i) {
         uint64_t offset = (i * stack_plus_guard_size) + __cgn_pagesize;
 
-        void *_oldprot;
-        VirtualProtect(stacks + offset, SEAGREEN_MAX_STACK_SIZE, PAGE_READWRITE, _oldprot);
+        DWORD _oldprot;
+        VirtualProtect((char *)stacks + offset, SEAGREEN_MAX_STACK_SIZE, PAGE_READWRITE, &_oldprot);
     }
 #endif
 
@@ -119,10 +125,10 @@ __CGN_EXPORT void seagreen_init_rt(void) {
 #if !defined(_WIN32)
         __cgn_pagesize = getpagesize();
 #else
-        LPSYSTEM_INFO sysinfo;
+        SYSTEM_INFO sysinfo;
         GetSystemInfo(&sysinfo);
 
-        __cgn_pagesize = sysinfo->dwPageSize;
+        __cgn_pagesize = sysinfo.dwPageSize;
 #endif
     }
 
@@ -164,7 +170,7 @@ __CGN_EXPORT void seagreen_free_rt(void) {
 #if !defined(_WIN32)
         munmap(block->stacks, block_alloc_size);
 #else
-        VirtualFree(block->stacks, block_alloc_size, MEM_RELEASE);
+        VirtualFree(block->stacks, 0, MEM_RELEASE);
 #endif
 
         free(block);
@@ -172,6 +178,9 @@ __CGN_EXPORT void seagreen_free_rt(void) {
     }
 
     __cgn_threadlist.head = 0;
+    __cgn_threadlist.tail = 0;
+    __cgn_threadlist.block_count = 0;
+    __cgn_threadlist.thread_count = 0;
 
     __cgn_curr_thread = 0;
     __cgn_main_thread = 0;
@@ -186,7 +195,12 @@ __CGN_EXPORT void async_yield(void) {
         return;
     }
 
+    CGN_DBG("yield: tid=%u\n", __cgn_curr_thread->id);
+
     __cgn_savectx(&__cgn_curr_thread->ctx);
+
+    __CGNThread *dbg_t = __cgn_curr_thread;
+    CGN_DBG("yield-post: t=%p id=%u state=%u in_use=%d\n", (void*)dbg_t, dbg_t ? dbg_t->id : (uint32_t)0xffffffff, dbg_t ? dbg_t->state : (unsigned)0xffffffff, dbg_t ? dbg_t->in_use : -1);
 
     _Bool temp_yield_toggle = __cgn_curr_thread->yield_toggle;
     __cgn_curr_thread->yield_toggle = !__cgn_curr_thread->yield_toggle;
@@ -197,6 +211,7 @@ __CGN_EXPORT void async_yield(void) {
 }
 
 __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
+    CGN_DBG("await: tid=%u waiting_on=%u\n", __cgn_curr_thread->id, (uint32_t)handle);
     __cgn_curr_thread->awaited_thread_id = handle;
     __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
 
@@ -206,6 +221,7 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
     __CGNThread *t = &block->threads[pos];
     uint64_t return_val = 0;
     if (t->in_use) {
+        CGN_DBG("await: target id=%u awaiting_count(before)=%u\n", t->id, t->awaiting_thread_count);
         t->awaiting_thread_count++;
 
         /* Because thread is waiting, the curr thread */
@@ -214,7 +230,10 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
         async_yield();
 
         return_val = (uint64_t) t->return_val;
+        CGN_DBG("await: resumed; target id=%u state=%u awaiting_count(now)=%u return=%llu\n",
+                t->id, t->state, t->awaiting_thread_count, (unsigned long long)return_val);
         if (!t->awaiting_thread_count) {
+            CGN_DBG("await: removing id=%u pos=%u\n", t->id, pos);
             __cgn_remove_thread(block, pos);
         }
     }
@@ -240,9 +259,13 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                     __CGNThread *awaited_thread =
                         __cgn_get_thread(staged_thread->awaited_thread_id);
                     if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
+                        CGN_DBG("sched: waking waiter id=%u; awaited id=%u is DONE (awaiting-- from %u)\n",
+                                staged_thread->id, awaited_thread->id, awaited_thread->awaiting_thread_count);
                         awaited_thread->awaiting_thread_count--;
                         staged_thread->state = __CGN_THREAD_STATE_READY;
                     } else {
+                        CGN_DBG("sched: waiter id=%u still waiting on id=%u (state=%u)\n",
+                                staged_thread->id, awaited_thread->id, awaited_thread->state);
                         continue;
                     }
                 }
@@ -254,6 +277,7 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                     staged_thread->state == __CGN_THREAD_STATE_RUNNING;
 
                 if (!runnable) {
+                    CGN_DBG("sched: skip id=%u (state=%u)\n", staged_thread->id, staged_thread->state);
                     continue;
                 }
 
@@ -270,7 +294,12 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                 // access to scheduler
                 ++__cgn_sched_thread_pos;
 
+                CGN_DBG("sched: switch %u -> %u (state=%u) t=%p\n", running_thread->id, staged_thread->id, staged_thread->state, (void*)staged_thread);
+                CGN_DBG("sched: pre-load __cgn_curr_thread=%p\n", (void*)__cgn_curr_thread);
+                __asm__ __volatile__("" ::: "memory"); // memory barrier to ensure compiler doesn't reorder loads and stores in a breaking way
                 __cgn_loadctx(&staged_thread->ctx, staged_thread);
+                // Should never reach here due to noreturn
+                CGN_DBG("sched: ERROR - returned from loadctx!\n");
             }
 
             __cgn_sched_thread_pos = 0;
@@ -333,13 +362,16 @@ __CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack) {
     ++block->used_thread_count;
 
     uint64_t stack_plus_guard_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
-    *stack = block->stacks + (pos + 1) * stack_plus_guard_size + SEAGREEN_MAX_STACK_SIZE;
+    *stack = (char *)block->stacks + pos * stack_plus_guard_size + SEAGREEN_MAX_STACK_SIZE;
+
+    CGN_DBG("add_thread: id=%u block_threads=%u pos=%u stack=%p\n", t->id, __CGN_THREAD_BLOCK_SIZE, pos, *stack);
 
     return t;
 }
 
 __CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos) {
     __CGNThread *t = &block->threads[pos];
+    CGN_DBG("remove_thread: id=%u pos=%u\n", t->id, pos);
 
     *t = (__CGNThread){0};
     t->state = __CGN_THREAD_STATE_READY;

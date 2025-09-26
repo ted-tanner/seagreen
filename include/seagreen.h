@@ -148,9 +148,9 @@ typedef struct __CGNThreadList_ {
 
 // Two of these functions return the thread pointer such that it is available when
 // the thread is resumed and the stack may have changed.
-extern __CGN_EXPORT __attribute__((noinline)) __CGNThread *__cgn_loadctx(__CGNThreadCtx *ctx, __CGNThread *t);
-extern __CGN_EXPORT __attribute__((noinline)) void __cgn_savectx(__CGNThreadCtx *ctx);
-extern __CGN_EXPORT __attribute__((noinline)) __CGNThread *__cgn_savenewctx(__CGNThreadCtx *ctx, void *stack, __CGNThread *t);
+extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThreadCtx *ctx, __CGNThread *t);
+extern __CGN_EXPORT __attribute__((noinline, returns_twice)) void __cgn_savectx(__CGNThreadCtx *ctx);
+extern __CGN_EXPORT __attribute__((noinline, returns_twice)) __CGNThread *__cgn_savenewctx(__CGNThreadCtx *ctx, void *stack, __CGNThread *t);
 
 // mmap returns -1 on error, check ptr < 1 rather than !ptr
 #define __cgn_check_malloc(ptr)                         \
@@ -181,6 +181,7 @@ __CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
 #define async __attribute__((noinline))
 
 extern _Thread_local __CGNThread *__cgn_curr_thread;
+extern _Thread_local __CGNThread *__cgn_sched_thread;
 
 #define async_run(Fn) ({                                \
             void *stack;                                \
@@ -188,10 +189,14 @@ extern _Thread_local __CGNThread *__cgn_curr_thread;
                                                         \
             t = __cgn_savenewctx(&t->ctx, stack, t);    \
                                                         \
+            printf("async_run: t=%p __cgn_curr_thread=%p\n", (void*)t, (void*)__cgn_curr_thread); \
             if (t == __cgn_curr_thread) {               \
+                printf("EXEC: thread %u starting\n", t->id); \
                 t->return_val = (uint64_t) Fn;          \
                 t->state = __CGN_THREAD_STATE_DONE;     \
-                __cgn_scheduler();                      \
+                __cgn_curr_thread = __cgn_sched_thread; \
+                __cgn_sched_thread->yield_toggle = 1;   \
+                __cgn_loadctx(&__cgn_sched_thread->ctx, __cgn_sched_thread); \
                 /* This should never be reached */      \
                 assert(0);                              \
             }                                           \

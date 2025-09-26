@@ -34,8 +34,6 @@ TEST_SRC_DIR=./tests
 
 SRC_FILES=$(echo $(find $SRC_DIR -type f -name "*.c") $(find src -type f -name "*.S"))
 
-# Thanks to https://unix.stackexchange.com/a/469653 for showing me how to sort the output
-# of find
 TEST_SRC_FILES=$(echo $(find $TEST_SRC_DIR -maxdepth 1 -type f -name "*.c" -print0 | sort -z | xargs -0))
 
 if [[ !($1 = "clean" || $1 = "test" || $1 = "release" || $1 = "") ]]; then
@@ -104,7 +102,8 @@ if [[ $1 = "test" ]]; then
     TEST_COUNT=0 &&
 
     for TEST_NAME in $TEST_NAMES; do
-        echo "\n----- Running test: $TEST_NAME -----\n"
+        echo "" &&
+        echo "----- Running test: $TEST_NAME -----"
         time $TARGET_DIR/tests/$TEST_NAME
 
         if [[ $? -eq 0 ]]; then
@@ -114,7 +113,8 @@ if [[ $1 = "test" ]]; then
         TEST_COUNT=$((TEST_COUNT + 1))
     done &&
 
-    echo "\n\n------------------" &&
+    echo "" &&
+    echo "------------------" &&
     echo "PASSED: $SUCCESS_COUNT test(s)" &&
     echo "FAILED: $((TEST_COUNT-SUCCESS_COUNT)) test(s)" &&
     echo "------------------"

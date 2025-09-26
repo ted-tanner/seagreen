@@ -11,12 +11,10 @@
 
 #if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
 
-    // TODO
-
 .balign 4
 __CGN_SAVECTX_SYMBOL:
-    movq %rsp, 0(%rdi)
-    movq %rbp, 8(%rdi)
+    movq %rbp, 0(%rdi)
+    movq %rsp, 8(%rdi)
 
     movq %r12, 16(%rdi)
     movq %r13, 24(%rdi)
@@ -37,18 +35,16 @@ __CGN_SAVENEWCTX_SYMBOL:
     movq %r15, 40(%rdi)
     movq %rbx, 48(%rdi)
 
-    movq %rdx, %rdi
+    movq %rdx, %rax
 
     ret
 
 #elif defined(__x86_64__) && defined(__WIN64__)
 
-    // TODO
-
 .balign 4
 __CGN_SAVECTX_SYMBOL:
-    movq %rsp, 0(%rcx)
-    movq %rbp, 8(%rcx)
+    movq %rbp, 0(%rcx)
+    movq %rsp, 8(%rcx)
 
     movq %r12, 16(%rcx)
     movq %r13, 24(%rcx)
@@ -61,8 +57,8 @@ __CGN_SAVECTX_SYMBOL:
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    movq %rdx, 0(%rcx)
-    movq %rbp, 8(%rcx)
+    movq %rbp, 0(%rcx)
+    movq %rdx, 8(%rcx)
 
     movq %r12, 16(%rcx)
     movq %r13, 24(%rcx)
@@ -71,7 +67,7 @@ __CGN_SAVENEWCTX_SYMBOL:
     movq %rbx, 48(%rcx)
     movq %rdi, 56(%rcx)
 
-    movq %r8, %rcx
+    movq %r8, %rax
 
     ret
         
@@ -79,39 +75,27 @@ __CGN_SAVENEWCTX_SYMBOL:
 
 .balign 4
 __CGN_SAVECTX_SYMBOL:
-    str lr, [x0, 0]
     mov x9, sp
-    str x9, [x0, 8] 
+    stp lr, x9, [x0, 0]
 
-    str x19, [x0, 16]
-    str x20, [x0, 24]
-    str x21, [x0, 32]
-    str x22, [x0, 40]
-    str x23, [x0, 48]
-    str x24, [x0, 56]
-    str x25, [x0, 64]
-    str x26, [x0, 72]
-    str x27, [x0, 80]
-    str x28, [x0, 88]
+    stp x19, x20, [x0, 16]
+    stp x21, x22, [x0, 32]
+    stp x23, x24, [x0, 48]
+    stp x25, x26, [x0, 64]
+    stp x27, x28, [x0, 80]
     str x29, [x0, 96]
 
     ret
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    str lr, [x0, 0]
-    str x1, [x0, 8] 
+    stp lr, x1, [x0, 0]
 
-    str x19, [x0, 16]
-    str x20, [x0, 24]
-    str x21, [x0, 32]
-    str x22, [x0, 40]
-    str x23, [x0, 48]
-    str x24, [x0, 56]
-    str x25, [x0, 64]
-    str x26, [x0, 72]
-    str x27, [x0, 80]
-    str x28, [x0, 88]
+    stp x19, x20, [x0, 16]
+    stp x21, x22, [x0, 32]
+    stp x23, x24, [x0, 48]
+    stp x25, x26, [x0, 64]
+    stp x27, x28, [x0, 80]
     str x29, [x0, 96]
 
     mov x0, x2

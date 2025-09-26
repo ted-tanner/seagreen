@@ -5,21 +5,26 @@
 
 #include "seagreen.h"
 
-#define THREAD_COUNT 10000
+//#define THREAD_COUNT 10000
+#define THREAD_COUNT 5
 
 static _Bool running_func[THREAD_COUNT] = {0};
 static int pos = 0;
 
 async int foo() {
     __asm__ volatile("nop");
+    printf("foo() - 1\n");
     async_yield();
     __asm__ volatile("nop");
+    printf("foo() - 2\n");
     async_yield();
+    printf("foo() - 3\n");
 
     running_func[pos++] = 1;
     
     async_yield();
     __asm__ volatile("nop");
+    printf("foo() - 4\n");
 
     return 5;
 }

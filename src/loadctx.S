@@ -8,40 +8,36 @@
 
 #if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
 
-    // TODO 
-
 .balign 4
 __CGN_LOADCTX_SYMBOL:
-    movq %rbp, (%rdi)
-    movq %rsp, 8(%rdi)
+    movq 0(%rdi), %rbp
+    movq 8(%rdi), %rsp
 
-    movq %r12, 16(%rdi)
-    movq %r13, 24(%rdi)
-    movq %r14, 32(%rdi)
-    movq %r15, 40(%rdi)
-    movq %rbx, 48(%rdi)
+    movq 16(%rdi), %r12
+    movq 24(%rdi), %r13
+    movq 32(%rdi), %r14
+    movq 40(%rdi), %r15
+    movq 48(%rdi), %rbx
 
-    movq %rsi, %rdi
+    movq %rsi, %rax
 
     ret
 
 #elif defined(__x86_64__) && defined(__WIN64__)
 
-    // TODO
-
 .balign 4
 __CGN_LOADCTX_SYMBOL:
-    movq %rbp, (%rcx)
-    movq %rsp, 8(%rcx)
+    movq 0(%rcx), %rbp
+    movq 8(%rcx), %rsp
 
-    movq %r12, 16(%rcx)
-    movq %r13, 24(%rcx)
-    movq %r14, 32(%rcx)
-    movq %r15, 40(%rcx)
-    movq %rbx, 48(%rcx)
-    movq %rdi, 56(%rcx)
+    movq 16(%rcx), %r12
+    movq 24(%rcx), %r13
+    movq 32(%rcx), %r14
+    movq 40(%rcx), %r15
+    movq 48(%rcx), %rbx
+    movq 56(%rcx), %rdi
 
-    movq %rdx, %rcx
+    movq %rdx, %rax
 
     ret
 
@@ -49,25 +45,19 @@ __CGN_LOADCTX_SYMBOL:
 
 .balign 4
 __CGN_LOADCTX_SYMBOL:
-    ldr lr, [x0, 0]
-    ldr x9, [x0, 8]
+    ldp lr, x9, [x0, 0]
     mov sp, x9
 
-    ldr x19, [x0, 16]
-    ldr x20, [x0, 24]
-    ldr x21, [x0, 32]
-    ldr x22, [x0, 40]
-    ldr x23, [x0, 48]
-    ldr x24, [x0, 56]
-    ldr x25, [x0, 64]
-    ldr x26, [x0, 72]
-    ldr x27, [x0, 80]
-    ldr x28, [x0, 88]
+    ldp x19, x20, [x0, 16]
+    ldp x21, x22, [x0, 32]
+    ldp x23, x24, [x0, 48]
+    ldp x25, x26, [x0, 64]
+    ldp x27, x28, [x0, 80]
     ldr x29, [x0, 96]
 
     mov x0, x1
 
-    ret
+    br lr
 
 #elif defined(__riscv__)
 
