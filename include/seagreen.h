@@ -189,16 +189,15 @@ extern _Thread_local __CGNThread *__cgn_sched_thread;
                                                         \
             t = __cgn_savenewctx(&t->ctx, stack, t);    \
                                                         \
-            printf("async_run: t=%p __cgn_curr_thread=%p\n", (void*)t, (void*)__cgn_curr_thread); \
             if (t == __cgn_curr_thread) {               \
-                printf("EXEC: thread %u starting\n", t->id); \
                 t->return_val = (uint64_t) Fn;          \
                 t->state = __CGN_THREAD_STATE_DONE;     \
                 __cgn_curr_thread = __cgn_sched_thread; \
                 __cgn_sched_thread->yield_toggle = 1;   \
+                __asm__ __volatile__("" ::: "memory");  \
                 __cgn_loadctx(&__cgn_sched_thread->ctx, __cgn_sched_thread); \
                 /* This should never be reached */      \
-                assert(0);                              \
+                abort();                                \
             }                                           \
                                                         \
             (CGNThreadHandle) t->id;                    \

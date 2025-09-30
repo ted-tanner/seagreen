@@ -7,10 +7,11 @@ _Thread_local __CGNThreadList __cgn_threadlist = {0};
 
 _Thread_local __CGNThread *__cgn_curr_thread = 0;
 _Thread_local __CGNThread *__cgn_main_thread = 0;
+_Thread_local __CGNThread *__cgn_sched_thread = 0;
 
-_Thread_local __CGNThreadBlock *__cgn_sched_block = 0;
-_Thread_local uint32_t __cgn_sched_block_pos = 0;
-_Thread_local uint32_t __cgn_sched_thread_pos = 0;
+_Thread_local __CGNThreadBlock *__cgn_scheduled_block = 0;
+_Thread_local uint32_t __cgn_scheduled_block_pos = 0;
+_Thread_local uint32_t __cgn_scheduled_thread_pos = 0;
 
 #ifdef CGN_DEBUG
 #define CGN_DBG(...) printf(__VA_ARGS__)
@@ -137,15 +138,22 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     __cgn_main_thread = &__cgn_threadlist.head->threads[0];
     __cgn_main_thread->state = __CGN_THREAD_STATE_RUNNING;
     __cgn_main_thread->yield_toggle = 1;
+    __cgn_main_thread->in_use = 1;
+    
+    block->used_thread_count = 1;
 
     __cgn_curr_thread = __cgn_main_thread;
 
-    __cgn_sched_block = block;
-    __cgn_sched_block_pos = 0;
-    __cgn_sched_thread_pos = 0;
+    __cgn_scheduled_block = block;
+    __cgn_scheduled_block_pos = 0;
+    __cgn_scheduled_thread_pos = 0;
 
-    __cgn_main_thread->in_use = 1;
-    block->used_thread_count = 1;
+    void *sched_stack;
+    __cgn_sched_thread = __cgn_add_thread(&sched_stack);
+    
+    __cgn_sched_thread->ctx.lr = (uint64_t)__cgn_scheduler;
+    __cgn_sched_thread->ctx.sp = (uint64_t)sched_stack;
+    __cgn_sched_thread->state = __CGN_THREAD_STATE_READY;
 }
 
 __CGN_EXPORT void seagreen_free_rt(void) {
@@ -184,10 +192,11 @@ __CGN_EXPORT void seagreen_free_rt(void) {
 
     __cgn_curr_thread = 0;
     __cgn_main_thread = 0;
+    __cgn_sched_thread = 0;
 
-    __cgn_sched_block = 0;
-    __cgn_sched_block_pos = 0;
-    __cgn_sched_thread_pos = 0;
+    __cgn_scheduled_block = 0;
+    __cgn_scheduled_block_pos = 0;
+    __cgn_scheduled_thread_pos = 0;
 }
 
 __CGN_EXPORT void async_yield(void) {
@@ -195,23 +204,25 @@ __CGN_EXPORT void async_yield(void) {
         return;
     }
 
-    CGN_DBG("yield: tid=%u\n", __cgn_curr_thread->id);
-
     __cgn_savectx(&__cgn_curr_thread->ctx);
-
-    __CGNThread *dbg_t = __cgn_curr_thread;
-    CGN_DBG("yield-post: t=%p id=%u state=%u in_use=%d\n", (void*)dbg_t, dbg_t ? dbg_t->id : (uint32_t)0xffffffff, dbg_t ? dbg_t->state : (unsigned)0xffffffff, dbg_t ? dbg_t->in_use : -1);
 
     _Bool temp_yield_toggle = __cgn_curr_thread->yield_toggle;
     __cgn_curr_thread->yield_toggle = !__cgn_curr_thread->yield_toggle;
 
     if (temp_yield_toggle) {
-        __cgn_scheduler();
+        __CGNThread *running_thread = __cgn_curr_thread;
+        __cgn_curr_thread = __cgn_sched_thread;
+
+        if (running_thread->state == __CGN_THREAD_STATE_RUNNING) {
+            running_thread->state = __CGN_THREAD_STATE_READY;
+        }
+
+        __cgn_sched_thread->state = __CGN_THREAD_STATE_RUNNING;
+        __cgn_loadctx(&__cgn_sched_thread->ctx, __cgn_sched_thread);
     }
 }
 
 __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
-    CGN_DBG("await: tid=%u waiting_on=%u\n", __cgn_curr_thread->id, (uint32_t)handle);
     __cgn_curr_thread->awaited_thread_id = handle;
     __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
 
@@ -221,19 +232,32 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
     __CGNThread *t = &block->threads[pos];
     uint64_t return_val = 0;
     if (t->in_use) {
-        CGN_DBG("await: target id=%u awaiting_count(before)=%u\n", t->id, t->awaiting_thread_count);
         t->awaiting_thread_count++;
 
         /* Because thread is waiting, the curr thread */
         /* won't be scheduled until awaited thread has */
         /* finished its execution */
-        async_yield();
+        
+        // Use a loop to handle spurious wakeups (scheduler exiting to us before awaited thread is done)
+        while (t->state != __CGN_THREAD_STATE_DONE) {
+            __cgn_savectx(&__cgn_curr_thread->ctx);
+            
+            _Bool temp_toggle = __cgn_curr_thread->yield_toggle;
+            __cgn_curr_thread->yield_toggle = !__cgn_curr_thread->yield_toggle;
+            
+            if (temp_toggle) {
+                // Switch to the dedicated scheduler thread
+                __CGNThread *waiting_thread = __cgn_curr_thread;
+                __cgn_curr_thread = __cgn_sched_thread;
+                
+                waiting_thread->state = __CGN_THREAD_STATE_WAITING;
+                __cgn_sched_thread->state = __CGN_THREAD_STATE_RUNNING;
+                __cgn_loadctx(&__cgn_sched_thread->ctx, __cgn_sched_thread);
+            }
+        }
 
         return_val = (uint64_t) t->return_val;
-        CGN_DBG("await: resumed; target id=%u state=%u awaiting_count(now)=%u return=%llu\n",
-                t->id, t->state, t->awaiting_thread_count, (unsigned long long)return_val);
         if (!t->awaiting_thread_count) {
-            CGN_DBG("await: removing id=%u pos=%u\n", t->id, pos);
             __cgn_remove_thread(block, pos);
         }
     }
@@ -243,15 +267,22 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
 
 __CGN_EXPORT void __cgn_scheduler(void) {
     while (1) {
-        for (; __cgn_sched_block; __cgn_sched_block = __cgn_sched_block->next, ++__cgn_sched_block_pos) {
-            if (!__cgn_sched_block->used_thread_count) {
+        _Bool found_runnable = 0;
+        
+        for (; __cgn_scheduled_block; __cgn_scheduled_block = __cgn_scheduled_block->next, ++__cgn_scheduled_block_pos) {
+            if (!__cgn_scheduled_block->used_thread_count) {
                 continue;
             }
 
-            for (; __cgn_sched_thread_pos < __CGN_THREAD_BLOCK_SIZE; ++__cgn_sched_thread_pos) {
-                __CGNThread *staged_thread = &__cgn_sched_block->threads[__cgn_sched_thread_pos];
+            for (; __cgn_scheduled_thread_pos < __CGN_THREAD_BLOCK_SIZE; ++__cgn_scheduled_thread_pos) {
+                __CGNThread *staged_thread = &__cgn_scheduled_block->threads[__cgn_scheduled_thread_pos];
 
                 if (!staged_thread->in_use) {
+                    continue;
+                }
+
+                // Never schedule the dedicated scheduler thread itself
+                if (staged_thread == __cgn_sched_thread) {
                     continue;
                 }
 
@@ -259,13 +290,9 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                     __CGNThread *awaited_thread =
                         __cgn_get_thread(staged_thread->awaited_thread_id);
                     if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
-                        CGN_DBG("sched: waking waiter id=%u; awaited id=%u is DONE (awaiting-- from %u)\n",
-                                staged_thread->id, awaited_thread->id, awaited_thread->awaiting_thread_count);
                         awaited_thread->awaiting_thread_count--;
                         staged_thread->state = __CGN_THREAD_STATE_READY;
                     } else {
-                        CGN_DBG("sched: waiter id=%u still waiting on id=%u (state=%u)\n",
-                                staged_thread->id, awaited_thread->id, awaited_thread->state);
                         continue;
                     }
                 }
@@ -277,10 +304,10 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                     staged_thread->state == __CGN_THREAD_STATE_RUNNING;
 
                 if (!runnable) {
-                    CGN_DBG("sched: skip id=%u (state=%u)\n", staged_thread->id, staged_thread->state);
                     continue;
                 }
 
+                found_runnable = 1;
                 __CGNThread *running_thread = __cgn_curr_thread;
                 __cgn_curr_thread = staged_thread;
 
@@ -292,21 +319,27 @@ __CGN_EXPORT void __cgn_scheduler(void) {
 
                 // Won't loop after loading new ctx; increment thread position for next
                 // access to scheduler
-                ++__cgn_sched_thread_pos;
+                ++__cgn_scheduled_thread_pos;
 
-                CGN_DBG("sched: switch %u -> %u (state=%u) t=%p\n", running_thread->id, staged_thread->id, staged_thread->state, (void*)staged_thread);
-                CGN_DBG("sched: pre-load __cgn_curr_thread=%p\n", (void*)__cgn_curr_thread);
                 __asm__ __volatile__("" ::: "memory"); // memory barrier to ensure compiler doesn't reorder loads and stores in a breaking way
                 __cgn_loadctx(&staged_thread->ctx, staged_thread);
-                // Should never reach here due to noreturn
-                CGN_DBG("sched: ERROR - returned from loadctx!\n");
+                // unreachable
             }
 
-            __cgn_sched_thread_pos = 0;
+            __cgn_scheduled_thread_pos = 0;
         }
 
-        __cgn_sched_block = __cgn_threadlist.head;
-        __cgn_sched_block_pos = 0;
+        __cgn_scheduled_block = __cgn_threadlist.head;
+        __cgn_scheduled_block_pos = 0;
+        __cgn_scheduled_thread_pos = 0;
+
+        // If no runnable threads found, exit scheduler and return to main
+        if (!found_runnable) {
+            __cgn_curr_thread = __cgn_main_thread;
+            __cgn_main_thread->state = __CGN_THREAD_STATE_RUNNING;
+            __cgn_loadctx(&__cgn_main_thread->ctx, __cgn_main_thread);
+            // unreachable
+        }
     }
 }
 
@@ -364,14 +397,11 @@ __CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack) {
     uint64_t stack_plus_guard_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
     *stack = (char *)block->stacks + pos * stack_plus_guard_size + SEAGREEN_MAX_STACK_SIZE;
 
-    CGN_DBG("add_thread: id=%u block_threads=%u pos=%u stack=%p\n", t->id, __CGN_THREAD_BLOCK_SIZE, pos, *stack);
-
     return t;
 }
 
 __CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos) {
     __CGNThread *t = &block->threads[pos];
-    CGN_DBG("remove_thread: id=%u pos=%u\n", t->id, pos);
 
     *t = (__CGNThread){0};
     t->state = __CGN_THREAD_STATE_READY;
