@@ -2,8 +2,6 @@
 
 # SeaGreen (seagreenlib)
 
-**WARNING: SeaGreen has been tested in a very limited set of environments. There are likely bugs that will cause unsoundness in untested environments.**
-
 An easy-to-use green threading library ~~for Sea~~ for C.
 
 ## How does SeaGreen work? Why use SeaGreen?
@@ -27,9 +25,8 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
 
 ## TODO
 
-* Fix: 2nd test loops indefinitely. We just changed the async_run implementation to switch to the scheduler thread.
-
 * Documentation
+* The scheduler thread doesn't need to be a typical thread. It just needs its own stack and context struct, which can be threadlocal variables. Its stack should have the same mprotect() guard as other stacks (see `add_block()`).
 * Can/should we just use setjmp
 * Struct of arrays rather than array of structs for the blocks. Makes finding in-use threads quicker (can use uint64_t)
 * Rename variables local to macros (is this necessary?)

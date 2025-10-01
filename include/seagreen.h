@@ -6,7 +6,7 @@
 
 
 #if !defined __GNUC__ && !defined __clang__
-#warning "seagreenlib only officially supports the GCC and Clang compilers"
+#warning "seagreenlib only supports the gcc and clang compilers"
 #endif
 
 #include <stdint.h>
@@ -106,9 +106,7 @@ typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
     __CGN_THREAD_STATE_DONE,
 } __CGNThreadState;
 
-// After some testing, it appears that 1024 is the sweet spot. 2048 doesn't
-// speed things up under load, and 512 is slower than 1024.
-#define __CGN_THREAD_BLOCK_SIZE 1024
+#define __CGN_THREAD_BLOCK_SIZE 256
 
 // Careful alignment of these struct fields to avoid padding is important
 // for performance here.

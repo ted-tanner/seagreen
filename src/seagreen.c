@@ -1,5 +1,7 @@
 #include "seagreen.h"
+#include <_abort.h>
 #include <stdint.h>
+#include <stdio.h>
 
 _Thread_local int __cgn_pagesize = 0;
 
@@ -139,7 +141,7 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     __cgn_main_thread->state = __CGN_THREAD_STATE_RUNNING;
     __cgn_main_thread->yield_toggle = 1;
     __cgn_main_thread->in_use = 1;
-    
+
     block->used_thread_count = 1;
 
     __cgn_curr_thread = __cgn_main_thread;
@@ -150,7 +152,7 @@ __CGN_EXPORT void seagreen_init_rt(void) {
 
     void *sched_stack;
     __cgn_sched_thread = __cgn_add_thread(&sched_stack);
-    
+
     __cgn_sched_thread->ctx.lr = (uint64_t)__cgn_scheduler;
     __cgn_sched_thread->ctx.sp = (uint64_t)sched_stack;
     __cgn_sched_thread->state = __CGN_THREAD_STATE_READY;
@@ -218,6 +220,7 @@ __CGN_EXPORT void async_yield(void) {
         }
 
         __cgn_sched_thread->state = __CGN_THREAD_STATE_RUNNING;
+        __asm__ __volatile__("" ::: "memory");
         __cgn_loadctx(&__cgn_sched_thread->ctx, __cgn_sched_thread);
     }
 }
@@ -237,25 +240,27 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
         /* Because thread is waiting, the curr thread */
         /* won't be scheduled until awaited thread has */
         /* finished its execution */
-        
+
         // Use a loop to handle spurious wakeups (scheduler exiting to us before awaited thread is done)
         while (t->state != __CGN_THREAD_STATE_DONE) {
             __cgn_savectx(&__cgn_curr_thread->ctx);
-            
+
             _Bool temp_toggle = __cgn_curr_thread->yield_toggle;
             __cgn_curr_thread->yield_toggle = !__cgn_curr_thread->yield_toggle;
-            
+
             if (temp_toggle) {
                 // Switch to the dedicated scheduler thread
                 __CGNThread *waiting_thread = __cgn_curr_thread;
                 __cgn_curr_thread = __cgn_sched_thread;
-                
+
                 waiting_thread->state = __CGN_THREAD_STATE_WAITING;
                 __cgn_sched_thread->state = __CGN_THREAD_STATE_RUNNING;
+                __asm__ __volatile__("" ::: "memory");
                 __cgn_loadctx(&__cgn_sched_thread->ctx, __cgn_sched_thread);
             }
         }
 
+        __asm__ __volatile__("" ::: "memory");
         return_val = (uint64_t) t->return_val;
         if (!t->awaiting_thread_count) {
             __cgn_remove_thread(block, pos);
@@ -267,8 +272,6 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
 
 __CGN_EXPORT void __cgn_scheduler(void) {
     while (1) {
-        _Bool found_runnable = 0;
-        
         for (; __cgn_scheduled_block; __cgn_scheduled_block = __cgn_scheduled_block->next, ++__cgn_scheduled_block_pos) {
             if (!__cgn_scheduled_block->used_thread_count) {
                 continue;
@@ -292,6 +295,7 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                     if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
                         awaited_thread->awaiting_thread_count--;
                         staged_thread->state = __CGN_THREAD_STATE_READY;
+                        staged_thread->awaited_thread_id = 0;
                     } else {
                         continue;
                     }
@@ -307,7 +311,6 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                     continue;
                 }
 
-                found_runnable = 1;
                 __CGNThread *running_thread = __cgn_curr_thread;
                 __cgn_curr_thread = staged_thread;
 
@@ -324,6 +327,7 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                 __asm__ __volatile__("" ::: "memory"); // memory barrier to ensure compiler doesn't reorder loads and stores in a breaking way
                 __cgn_loadctx(&staged_thread->ctx, staged_thread);
                 // unreachable
+                abort();
             }
 
             __cgn_scheduled_thread_pos = 0;
@@ -332,14 +336,6 @@ __CGN_EXPORT void __cgn_scheduler(void) {
         __cgn_scheduled_block = __cgn_threadlist.head;
         __cgn_scheduled_block_pos = 0;
         __cgn_scheduled_thread_pos = 0;
-
-        // If no runnable threads found, exit scheduler and return to main
-        if (!found_runnable) {
-            __cgn_curr_thread = __cgn_main_thread;
-            __cgn_main_thread->state = __CGN_THREAD_STATE_RUNNING;
-            __cgn_loadctx(&__cgn_main_thread->ctx, __cgn_main_thread);
-            // unreachable
-        }
     }
 }
 
