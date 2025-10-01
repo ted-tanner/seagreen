@@ -1,4 +1,4 @@
-#if defined(__WIN64__) || defined(__APPLE__)
+#if defined(_WIN64) || defined(__APPLE__)
 #define __CGN_SAVECTX_SYMBOL ___cgn_savectx
 #define __CGN_SAVENEWCTX_SYMBOL ___cgn_savenewctx
 #else
@@ -15,57 +15,123 @@
 __CGN_SAVECTX_SYMBOL:
     movq %rbp, 0(%rdi)
     movq %rsp, 8(%rdi)
+    movq (%rsp), %rax
+    movq %rax, 16(%rdi)
 
-    movq %r12, 16(%rdi)
-    movq %r13, 24(%rdi)
-    movq %r14, 32(%rdi)
-    movq %r15, 40(%rdi)
-    movq %rbx, 48(%rdi)
+    movq %r12, 24(%rdi)
+    movq %r13, 32(%rdi)
+    movq %r14, 40(%rdi)
+    movq %r15, 48(%rdi)
+    movq %rbx, 56(%rdi)
+
+    movdqu %xmm6, 64(%rdi)
+    movdqu %xmm7, 80(%rdi)
+    movdqu %xmm8, 96(%rdi)
+    movdqu %xmm9, 112(%rdi)
+    movdqu %xmm10, 128(%rdi)
+    movdqu %xmm11, 144(%rdi)
+    movdqu %xmm12, 160(%rdi)
+    movdqu %xmm13, 176(%rdi)
+    movdqu %xmm14, 192(%rdi)
+    movdqu %xmm15, 208(%rdi)
 
     ret
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    movq %rbp, 0(%rdi)
-    movq %rsi, 8(%rdi)
+    movq $0, 0(%rdi)
 
-    movq %r12, 16(%rdi)
-    movq %r13, 24(%rdi)
-    movq %r14, 32(%rdi)
-    movq %r15, 40(%rdi)
-    movq %rbx, 48(%rdi)
+    movq %rsi, %rcx
+    leaq -8(%rcx), %rcx
+    movq %rcx, 8(%rdi)
+
+    leaq 0f(%rip), %r8
+    movq %r8, 16(%rdi)
+    movq %r8, (%rcx)
+
+    movq $0, 24(%rdi)
+    movq $0, 32(%rdi)
+    movq $0, 40(%rdi)
+    movq $0, 48(%rdi)
+    movq $0, 56(%rdi)
+
+    pxor %xmm6, %xmm6
+    movdqu %xmm6, 64(%rdi)
+    movdqu %xmm6, 80(%rdi)
+    movdqu %xmm6, 96(%rdi)
+    movdqu %xmm6, 112(%rdi)
+    movdqu %xmm6, 128(%rdi)
+    movdqu %xmm6, 144(%rdi)
+    movdqu %xmm6, 160(%rdi)
+    movdqu %xmm6, 176(%rdi)
+    movdqu %xmm6, 192(%rdi)
+    movdqu %xmm6, 208(%rdi)
 
     movq %rdx, %rax
 
     ret
 
-#elif defined(__x86_64__) && defined(__WIN64__)
+#elif defined(__x86_64__) && defined(_WIN64)
 
 .balign 4
 __CGN_SAVECTX_SYMBOL:
     movq %rbp, 0(%rcx)
     movq %rsp, 8(%rcx)
+    movq (%rsp), %rax
+    movq %rax, 16(%rcx) // RIP stored explicitly
 
-    movq %r12, 16(%rcx)
-    movq %r13, 24(%rcx)
-    movq %r14, 32(%rcx)
-    movq %r15, 40(%rcx)
-    movq %rbx, 48(%rcx)
-    movq %rdi, 56(%rcx)
+    movq %r12, 24(%rcx)
+    movq %r13, 32(%rcx)
+    movq %r14, 40(%rcx)
+    movq %r15, 48(%rcx)
+    movq %rbx, 56(%rcx)
+    movq %rdi, 64(%rcx)
+    movq %rsi, 72(%rcx)
+
+    movdqu %xmm6, 80(%rcx)
+    movdqu %xmm7, 96(%rcx)
+    movdqu %xmm8, 112(%rcx)
+    movdqu %xmm9, 128(%rcx)
+    movdqu %xmm10, 144(%rcx)
+    movdqu %xmm11, 160(%rcx)
+    movdqu %xmm12, 176(%rcx)
+    movdqu %xmm13, 192(%rcx)
+    movdqu %xmm14, 208(%rcx)
+    movdqu %xmm15, 224(%rcx)
 
     ret
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    movq %rbp, 0(%rcx)
-    movq %rdx, 8(%rcx)
+    movq $0, 0(%rcx)
 
-    movq %r12, 16(%rcx)
-    movq %r13, 24(%rcx)
-    movq %r14, 32(%rcx)
-    movq %r15, 40(%rcx)
-    movq %rbx, 48(%rcx)
-    movq %rdi, 56(%rcx)
+    movq %rdx, %r9
+    leaq -8(%r9), %r9
+    movq %r9, 8(%rcx)
+
+    leaq 0f(%rip), %r10
+    movq %r10, 16(%rcx)
+    movq %r10, (%r9)
+
+    movq $0, 24(%rcx)
+    movq $0, 32(%rcx)
+    movq $0, 40(%rcx)
+    movq $0, 48(%rcx)
+    movq $0, 56(%rcx)
+    movq $0, 64(%rcx)
+    movq $0, 72(%rcx)
+
+    pxor %xmm6, %xmm6
+    movdqu %xmm6, 80(%rcx)
+    movdqu %xmm6, 96(%rcx)
+    movdqu %xmm6, 112(%rcx)
+    movdqu %xmm6, 128(%rcx)
+    movdqu %xmm6, 144(%rcx)
+    movdqu %xmm6, 160(%rcx)
+    movdqu %xmm6, 176(%rcx)
+    movdqu %xmm6, 192(%rcx)
+    movdqu %xmm6, 208(%rcx)
+    movdqu %xmm6, 224(%rcx)
 
     movq %r8, %rax
 
@@ -85,6 +151,11 @@ __CGN_SAVECTX_SYMBOL:
     stp x27, x28, [x0, 80]
     str x29, [x0, 96]
 
+    stp q8, q9, [x0, 112]
+    stp q10, q11, [x0, 144]
+    stp q12, q13, [x0, 176]
+    stp q14, q15, [x0, 208]
+
     ret
 
 .balign 4
@@ -98,13 +169,16 @@ __CGN_SAVENEWCTX_SYMBOL:
     stp x27, x28, [x0, 80]
     str x29, [x0, 96]
 
+    stp q8, q9, [x0, 112]
+    stp q10, q11, [x0, 144]
+    stp q12, q13, [x0, 176]
+    stp q14, q15, [x0, 208]
+
     mov x0, x2
 
     ret
 
 #elif defined(__riscv__)
-
-// TODO
 
 .balign 4
 __CGN_SAVECTX_SYMBOL:

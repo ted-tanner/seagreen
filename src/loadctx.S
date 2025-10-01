@@ -1,4 +1,4 @@
-#if defined(__WIN64__) || defined(__APPLE__)
+#if defined(_WIN64) || defined(__APPLE__)
 #define __CGN_LOADCTX_SYMBOL ___cgn_loadctx
 #else
 #define __CGN_LOADCTX_SYMBOL __cgn_loadctx
@@ -12,34 +12,59 @@
 __CGN_LOADCTX_SYMBOL:
     movq 0(%rdi), %rbp
     movq 8(%rdi), %rsp
+    movq 16(%rdi), %rax
+    movq 24(%rdi), %r12
+    movq 32(%rdi), %r13
+    movq 40(%rdi), %r14
+    movq 48(%rdi), %r15
+    movq 56(%rdi), %rbx
 
-    movq 16(%rdi), %r12
-    movq 24(%rdi), %r13
-    movq 32(%rdi), %r14
-    movq 40(%rdi), %r15
-    movq 48(%rdi), %rbx
+    movdqu 64(%rdi), %xmm6
+    movdqu 80(%rdi), %xmm7
+    movdqu 96(%rdi), %xmm8
+    movdqu 112(%rdi), %xmm9
+    movdqu 128(%rdi), %xmm10
+    movdqu 144(%rdi), %xmm11
+    movdqu 160(%rdi), %xmm12
+    movdqu 176(%rdi), %xmm13
+    movdqu 192(%rdi), %xmm14
+    movdqu 208(%rdi), %xmm15
 
-    movq %rsi, %rax
+    movq %rsi, 8(%rsp)
+    jmp *%rax
 
-    ret
+#elif defined(__x86_64__) && defined(_WIN64)
 
-#elif defined(__x86_64__) && defined(__WIN64__)
+__CGN_LOADCTX_SYMBOL_ret_stub:
+    jmp *%rax
 
 .balign 4
 __CGN_LOADCTX_SYMBOL:
     movq 0(%rcx), %rbp
     movq 8(%rcx), %rsp
+    movq 16(%rcx), %rax
 
-    movq 16(%rcx), %r12
-    movq 24(%rcx), %r13
-    movq 32(%rcx), %r14
-    movq 40(%rcx), %r15
-    movq 48(%rcx), %rbx
-    movq 56(%rcx), %rdi
+    movq 24(%rcx), %r12
+    movq 32(%rcx), %r13
+    movq 40(%rcx), %r14
+    movq 48(%rcx), %r15
+    movq 56(%rcx), %rbx
+    movq 64(%rcx), %rdi
+    movq 72(%rcx), %rsi
 
-    movq %rdx, %rax
+    movdqu 80(%rcx), %xmm6
+    movdqu 96(%rcx), %xmm7
+    movdqu 112(%rcx), %xmm8
+    movdqu 128(%rcx), %xmm9
+    movdqu 144(%rcx), %xmm10
+    movdqu 160(%rcx), %xmm11
+    movdqu 176(%rcx), %xmm12
+    movdqu 192(%rcx), %xmm13
+    movdqu 208(%rcx), %xmm14
+    movdqu 224(%rcx), %xmm15
 
-    ret
+    movq %rdx, 8(%rsp)
+    jmp *%rax
 
 #elif defined(__aarch64__)
 
@@ -55,13 +80,16 @@ __CGN_LOADCTX_SYMBOL:
     ldp x27, x28, [x0, 80]
     ldr x29, [x0, 96]
 
+    ldp q8, q9, [x0, 112]
+    ldp q10, q11, [x0, 144]
+    ldp q12, q13, [x0, 176]
+    ldp q14, q15, [x0, 208]
+
     mov x0, x1
 
     br lr
 
 #elif defined(__riscv__)
-
-    // TODO
 
 .balign 4
 __CGN_LOADCTX_SYMBOL:

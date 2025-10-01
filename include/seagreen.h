@@ -31,17 +31,36 @@ void print_threads(void);
 
 #define __CGN_EXPORT __attribute__((visibility("default")))
 
+#if defined(__x86_64__) || defined(__aarch64__)
+typedef struct __attribute__((aligned(16))) __CGNVector128_ {
+    uint64_t lo;
+    uint64_t hi;
+} __CGNVector128;
+#endif
+
 #if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
 
 typedef struct __CGNThreadCtx_ {
     uint64_t rbp;
     uint64_t rsp;
+    uint64_t rip;
 
     uint64_t r12;
     uint64_t r13;
     uint64_t r14;
     uint64_t r15;
     uint64_t rbx;
+
+    __CGNVector128 xmm6;
+    __CGNVector128 xmm7;
+    __CGNVector128 xmm8;
+    __CGNVector128 xmm9;
+    __CGNVector128 xmm10;
+    __CGNVector128 xmm11;
+    __CGNVector128 xmm12;
+    __CGNVector128 xmm13;
+    __CGNVector128 xmm14;
+    __CGNVector128 xmm15;
 } __CGNThreadCtx;
 
 #elif defined(__x86_64__) && defined(_WIN64)
@@ -49,6 +68,7 @@ typedef struct __CGNThreadCtx_ {
 typedef struct __CGNThreadCtx_ {
     uint64_t rbp;
     uint64_t rsp;
+    uint64_t rip;
 
     uint64_t r12;
     uint64_t r13;
@@ -56,6 +76,18 @@ typedef struct __CGNThreadCtx_ {
     uint64_t r15;
     uint64_t rbx;
     uint64_t rdi;
+    uint64_t rsi;
+
+    __CGNVector128 xmm6;
+    __CGNVector128 xmm7;
+    __CGNVector128 xmm8;
+    __CGNVector128 xmm9;
+    __CGNVector128 xmm10;
+    __CGNVector128 xmm11;
+    __CGNVector128 xmm12;
+    __CGNVector128 xmm13;
+    __CGNVector128 xmm14;
+    __CGNVector128 xmm15;
 } __CGNThreadCtx;
 
 #elif defined(__aarch64__)
@@ -75,6 +107,15 @@ typedef struct __CGNThreadCtx_ {
     uint64_t x27;
     uint64_t x28;
     uint64_t x29;
+
+    __CGNVector128 v8;
+    __CGNVector128 v9;
+    __CGNVector128 v10;
+    __CGNVector128 v11;
+    __CGNVector128 v12;
+    __CGNVector128 v13;
+    __CGNVector128 v14;
+    __CGNVector128 v15;
 } __CGNThreadCtx;
 
 #elif defined(__riscv__)

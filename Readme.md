@@ -25,9 +25,13 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
 
 ## TODO
 
+* Thoughts on current segfault problem in test #2
+  - The segfault is happening in async_yield() right after we loadctx and return program flow back to async_yield() and then try to assign to a stack variable. The segfault is a stack problem.
+  - Are we assigning the right pointer as the stack for newly created threads?
 * Documentation
 * The scheduler thread doesn't need to be a typical thread. It just needs its own stack and context struct, which can be threadlocal variables. Its stack should have the same mprotect() guard as other stacks (see `add_block()`).
 * Can/should we just use setjmp
+* Can we make it so the functions can return data of arbitrary size (rather than the current 8-byte return values)?
 * Struct of arrays rather than array of structs for the blocks. Makes finding in-use threads quicker (can use uint64_t)
 * Rename variables local to macros (is this necessary?)
 * After same stack is used for a new thread 128 times, mmap and munmap (or VirtualAlloc with MEM_RESET)
