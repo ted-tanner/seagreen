@@ -31,7 +31,6 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
 * Documentation
 * Ready/waiting state bits and the yield toggle into a single 64-bit word with bitfields
 * The scheduler thread doesn't need to be a typical thread. It just needs its own stack and context struct, which can be threadlocal variables. Its stack should have the same mprotect() guard as other stacks (see `add_block()`).
-* Can/should we just use setjmp
 * Can we make it so the functions can return data of arbitrary size (rather than the current 8-byte return values)?
 * Struct of arrays rather than array of structs for the blocks. Makes finding in-use threads quicker (can use uint64_t)
 * Rename variables local to macros (is this necessary?)

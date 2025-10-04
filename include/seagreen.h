@@ -4,7 +4,6 @@
 #error "seagreenlib does not support this architecture"
 #endif
 
-
 #if !defined __GNUC__ && !defined __clang__
 #warning "seagreenlib only supports the gcc and clang compilers"
 #endif
@@ -50,17 +49,6 @@ typedef struct __CGNThreadCtx_ {
     uint64_t r14;
     uint64_t r15;
     uint64_t rbx;
-
-    __CGNVector128 xmm6;
-    __CGNVector128 xmm7;
-    __CGNVector128 xmm8;
-    __CGNVector128 xmm9;
-    __CGNVector128 xmm10;
-    __CGNVector128 xmm11;
-    __CGNVector128 xmm12;
-    __CGNVector128 xmm13;
-    __CGNVector128 xmm14;
-    __CGNVector128 xmm15;
 } __CGNThreadCtx;
 
 #elif defined(__x86_64__) && defined(_WIN64)
@@ -88,6 +76,8 @@ typedef struct __CGNThreadCtx_ {
     __CGNVector128 xmm13;
     __CGNVector128 xmm14;
     __CGNVector128 xmm15;
+    
+    uint32_t mxcsr;
 } __CGNThreadCtx;
 
 #elif defined(__aarch64__)
@@ -107,6 +97,9 @@ typedef struct __CGNThreadCtx_ {
     uint64_t x27;
     uint64_t x28;
     uint64_t x29;
+
+    uint32_t fpcr;
+    uint32_t fpsr;
 
     __CGNVector128 v8;
     __CGNVector128 v9;
@@ -154,18 +147,16 @@ typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
 // Careful alignment of these struct fields to avoid padding is important
 // for performance here.
 typedef struct __CGNThread_ {
+    __CGNThreadCtx ctx;
+    uint64_t return_val;
+
     uint32_t id;
+    uint32_t awaited_thread_id;
+    uint32_t awaiting_thread_count;
 
     __CGNThreadState state;
     _Bool yield_toggle;
     _Bool disable_yield;
-
-    uint32_t awaited_thread_id;
-    uint32_t awaiting_thread_count;
-
-    uint64_t return_val;
-
-    __CGNThreadCtx ctx;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {

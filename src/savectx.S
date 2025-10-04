@@ -24,17 +24,6 @@ __CGN_SAVECTX_SYMBOL:
     movq %r15, 48(%rdi)
     movq %rbx, 56(%rdi)
 
-    movdqu %xmm6, 64(%rdi)
-    movdqu %xmm7, 80(%rdi)
-    movdqu %xmm8, 96(%rdi)
-    movdqu %xmm9, 112(%rdi)
-    movdqu %xmm10, 128(%rdi)
-    movdqu %xmm11, 144(%rdi)
-    movdqu %xmm12, 160(%rdi)
-    movdqu %xmm13, 176(%rdi)
-    movdqu %xmm14, 192(%rdi)
-    movdqu %xmm15, 208(%rdi)
-
     ret
 
 .balign 4
@@ -55,18 +44,6 @@ __CGN_SAVENEWCTX_SYMBOL:
     movq $0, 48(%rdi)
     movq $0, 56(%rdi)
 
-    pxor %xmm6, %xmm6
-    movdqu %xmm6, 64(%rdi)
-    movdqu %xmm6, 80(%rdi)
-    movdqu %xmm6, 96(%rdi)
-    movdqu %xmm6, 112(%rdi)
-    movdqu %xmm6, 128(%rdi)
-    movdqu %xmm6, 144(%rdi)
-    movdqu %xmm6, 160(%rdi)
-    movdqu %xmm6, 176(%rdi)
-    movdqu %xmm6, 192(%rdi)
-    movdqu %xmm6, 208(%rdi)
-
     movq %rdx, %rax
 
     ret
@@ -78,7 +55,7 @@ __CGN_SAVECTX_SYMBOL:
     movq %rbp, 0(%rcx)
     movq %rsp, 8(%rcx)
     movq (%rsp), %rax
-    movq %rax, 16(%rcx) // RIP stored explicitly
+    movq %rax, 16(%rcx)
 
     movq %r12, 24(%rcx)
     movq %r13, 32(%rcx)
@@ -98,6 +75,8 @@ __CGN_SAVECTX_SYMBOL:
     movdqu %xmm13, 192(%rcx)
     movdqu %xmm14, 208(%rcx)
     movdqu %xmm15, 224(%rcx)
+
+    stmxcsr 240(%rcx)
 
     ret
 
@@ -135,6 +114,8 @@ __CGN_SAVENEWCTX_SYMBOL:
 
     movq %r8, %rax
 
+    stmxcsr 240(%rcx)
+
     ret
         
 #elif defined(__aarch64__)
@@ -150,6 +131,11 @@ __CGN_SAVECTX_SYMBOL:
     stp x25, x26, [x0, 64]
     stp x27, x28, [x0, 80]
     str x29, [x0, 96]
+
+    mrs x9, FPCR
+    str w9, [x0, 104]
+    mrs x9, FPSR
+    str w9, [x0, 108]
 
     stp q8, q9, [x0, 112]
     stp q10, q11, [x0, 144]
@@ -169,6 +155,19 @@ __CGN_SAVENEWCTX_SYMBOL:
     stp x27, x28, [x0, 80]
     str x29, [x0, 96]
 
+    mrs x9, FPCR
+    str w9, [x0, 104]
+    mrs x9, FPSR
+    str w9, [x0, 108]
+
+    movi v8.16b, #0
+    movi v9.16b, #0
+    movi v10.16b, #0
+    movi v11.16b, #0
+    movi v12.16b, #0
+    movi v13.16b, #0
+    movi v14.16b, #0
+    movi v15.16b, #0
     stp q8, q9, [x0, 112]
     stp q10, q11, [x0, 144]
     stp q12, q13, [x0, 176]

@@ -19,17 +19,6 @@ __CGN_LOADCTX_SYMBOL:
     movq 48(%rdi), %r15
     movq 56(%rdi), %rbx
 
-    movdqu 64(%rdi), %xmm6
-    movdqu 80(%rdi), %xmm7
-    movdqu 96(%rdi), %xmm8
-    movdqu 112(%rdi), %xmm9
-    movdqu 128(%rdi), %xmm10
-    movdqu 144(%rdi), %xmm11
-    movdqu 160(%rdi), %xmm12
-    movdqu 176(%rdi), %xmm13
-    movdqu 192(%rdi), %xmm14
-    movdqu 208(%rdi), %xmm15
-
     movq %rsi, 8(%rsp)
     jmp *%rax
 
@@ -63,6 +52,8 @@ __CGN_LOADCTX_SYMBOL:
     movdqu 208(%rcx), %xmm14
     movdqu 224(%rcx), %xmm15
 
+    ldmxcsr 240(%rcx)
+
     movq %rdx, 8(%rsp)
     jmp *%rax
 
@@ -80,10 +71,20 @@ __CGN_LOADCTX_SYMBOL:
     ldp x27, x28, [x0, 80]
     ldr x29, [x0, 96]
 
+    ldr w9, [x0, 104]
+    msr FPCR, x9
+    ldr w9, [x0, 108]
+    msr FPSR, x9
+
     ldp q8, q9, [x0, 112]
     ldp q10, q11, [x0, 144]
     ldp q12, q13, [x0, 176]
     ldp q14, q15, [x0, 208]
+
+    ldr w9, [x0, 240]
+    msr FPCR, x9
+    ldr w9, [x0, 244]
+    msr FPSR, x9
 
     mov x0, x1
 
