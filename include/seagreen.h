@@ -148,6 +148,8 @@ typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
 } __CGNThreadState;
 
 #define __CGN_THREAD_BLOCK_SIZE 256
+#define __CGN_IN_USE_CHUNK_SIZE (sizeof(uint64_t) * 8)
+#define __CGN_THREAD_IN_USE_CHUNK_COUNT (__CGN_THREAD_BLOCK_SIZE / __CGN_IN_USE_CHUNK_SIZE)
 
 // Careful alignment of these struct fields to avoid padding is important
 // for performance here.
@@ -157,14 +159,13 @@ typedef struct __CGNThread_ {
     __CGNThreadState state;
     _Bool yield_toggle;
     _Bool disable_yield;
-    _Bool in_use;
 
     uint32_t awaited_thread_id;
     uint32_t awaiting_thread_count;
 
-    __CGNThreadCtx ctx;
-
     uint64_t return_val;
+
+    __CGNThreadCtx ctx;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -174,6 +175,7 @@ typedef struct __CGNThreadBlock_ {
     __CGNThread threads[__CGN_THREAD_BLOCK_SIZE];
     void *stacks;
 
+    uint64_t in_use_mask[__CGN_THREAD_IN_USE_CHUNK_COUNT];
     uint16_t used_thread_count;
 } __CGNThreadBlock;
 

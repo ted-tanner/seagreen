@@ -21,6 +21,58 @@ _Thread_local uint32_t __cgn_scheduled_thread_pos = 0;
 #define CGN_DBG(...)
 #endif
 
+static inline void __cgn_block_set_in_use(__CGNThreadBlock *block, uint32_t pos) {
+    block->in_use_mask[pos / __CGN_IN_USE_CHUNK_SIZE] |= (uint64_t)1 << (pos % __CGN_IN_USE_CHUNK_SIZE);
+}
+
+static inline void __cgn_block_clear_in_use(__CGNThreadBlock *block, uint32_t pos) {
+    block->in_use_mask[pos / __CGN_IN_USE_CHUNK_SIZE] &= ~((uint64_t)1 << (pos % __CGN_IN_USE_CHUNK_SIZE));
+}
+
+static inline _Bool __cgn_block_slot_in_use(const __CGNThreadBlock *block, uint32_t pos) {
+    return (block->in_use_mask[pos / __CGN_IN_USE_CHUNK_SIZE] >> (pos % __CGN_IN_USE_CHUNK_SIZE)) & 1U;
+}
+
+static inline int64_t __cgn_block_find_free_slot(const __CGNThreadBlock *block) {
+    for (uint32_t chunk = 0; chunk < __CGN_THREAD_IN_USE_CHUNK_COUNT; ++chunk) {
+        uint64_t mask = block->in_use_mask[chunk];
+        if (mask == UINT64_MAX) {
+            continue;
+        }
+
+        uint64_t free_mask = ~mask;
+        uint32_t bit = (uint32_t)__builtin_ctzll(free_mask);
+        return (int64_t)(chunk * __CGN_IN_USE_CHUNK_SIZE + bit);
+    }
+
+    return -1;
+}
+
+static inline int64_t __cgn_block_next_in_use(const __CGNThreadBlock *block, uint32_t start_pos) {
+    if (start_pos >= __CGN_THREAD_BLOCK_SIZE) {
+        return -1;
+    }
+
+    uint32_t chunk = start_pos / __CGN_IN_USE_CHUNK_SIZE;
+    uint32_t offset = start_pos % __CGN_IN_USE_CHUNK_SIZE;
+
+    for (; chunk < __CGN_THREAD_IN_USE_CHUNK_COUNT; ++chunk, offset = 0) {
+        uint64_t mask = block->in_use_mask[chunk];
+        if (!mask) {
+            continue;
+        }
+
+        mask &= (~0ULL << offset);
+        if (!mask) {
+            continue;
+        }
+
+        return (int64_t)(chunk * __CGN_IN_USE_CHUNK_SIZE + (uint32_t)__builtin_ctzll(mask));
+    }
+
+    return -1;
+}
+
 #ifdef CGN_DEBUG
 
 static char *state_to_name(__CGNThreadState state) {
@@ -44,17 +96,23 @@ void print_threads(void) {
     printf("%u thread(s):\n\n", __cgn_threadlist.thread_count);
     for (__CGNThreadBlock *block = __cgn_threadlist.head; block;
          block = block->next, ++i) {
-        for (uint64_t pos = 0; pos < __CGN_THREAD_BLOCK_SIZE; ++pos) {
+        uint32_t pos = 0;
+        while (pos < __CGN_THREAD_BLOCK_SIZE) {
+            int64_t next = __cgn_block_next_in_use(block, pos);
+            if (next < 0) {
+                break;
+            }
+
+            pos = (uint32_t)next;
             uint32_t id = i * __CGN_THREAD_BLOCK_SIZE + pos;
             __CGNThread *thread = &block->threads[pos];
 
-            if (thread->in_use) {
-                __CGNThread *thread = &block->threads[pos];
-                printf("thread %u:\n\tstate: %s\n\tawaiting: %u\n\tawait count: "
-                       "%u\n\tptr: %p\n\n",
-                       id, state_to_name(thread->state), thread->awaited_thread_id,
-                       thread->awaiting_thread_count, thread);
-            }
+            printf("thread %u:\n\tstate: %s\n\tawaiting: %u\n\tawait count: "
+                   "%u\n\tptr: %p\n\n",
+                   id, state_to_name(thread->state), thread->awaited_thread_id,
+                   thread->awaiting_thread_count, thread);
+
+            ++pos;
         }
     }
     printf("------------------------------------\n\n");
@@ -138,9 +196,9 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     __CGNThreadBlock *block = add_block();
 
     __cgn_main_thread = &__cgn_threadlist.head->threads[0];
+    __cgn_block_set_in_use(block, 0);
     __cgn_main_thread->state = __CGN_THREAD_STATE_RUNNING;
     __cgn_main_thread->yield_toggle = 1;
-    __cgn_main_thread->in_use = 1;
 
     block->used_thread_count = 1;
 
@@ -234,7 +292,7 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
 
     __CGNThread *t = &block->threads[pos];
     uint64_t return_val = 0;
-    if (t->in_use) {
+    if (__cgn_block_slot_in_use(block, pos)) {
         t->awaiting_thread_count++;
 
         /* Because thread is waiting, the curr thread */
@@ -261,7 +319,7 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
         }
 
         __asm__ __volatile__("" ::: "memory");
-        return_val = (uint64_t) t->return_val;
+        return_val = (uint64_t)t->return_val;
         if (!t->awaiting_thread_count) {
             __cgn_remove_thread(block, pos);
         }
@@ -274,18 +332,24 @@ __CGN_EXPORT void __cgn_scheduler(void) {
     while (1) {
         for (; __cgn_scheduled_block; __cgn_scheduled_block = __cgn_scheduled_block->next, ++__cgn_scheduled_block_pos) {
             if (!__cgn_scheduled_block->used_thread_count) {
+                __cgn_scheduled_thread_pos = 0;
                 continue;
             }
 
-            for (; __cgn_scheduled_thread_pos < __CGN_THREAD_BLOCK_SIZE; ++__cgn_scheduled_thread_pos) {
-                __CGNThread *staged_thread = &__cgn_scheduled_block->threads[__cgn_scheduled_thread_pos];
+            size_t search_pos = __cgn_scheduled_thread_pos;
 
-                if (!staged_thread->in_use) {
-                    continue;
+            while (1) {
+                int64_t next_in_use = __cgn_block_next_in_use(__cgn_scheduled_block, search_pos);
+                if (next_in_use < 0) {
+                    break;
                 }
+
+                size_t thread_index = (size_t)next_in_use;
+                __CGNThread *staged_thread = &__cgn_scheduled_block->threads[thread_index];
 
                 // Never schedule the dedicated scheduler thread itself
                 if (staged_thread == __cgn_sched_thread) {
+                    search_pos = thread_index + 1;
                     continue;
                 }
 
@@ -297,6 +361,7 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                         staged_thread->state = __CGN_THREAD_STATE_READY;
                         staged_thread->awaited_thread_id = 0;
                     } else {
+                        search_pos = thread_index + 1;
                         continue;
                     }
                 }
@@ -308,6 +373,7 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                     staged_thread->state == __CGN_THREAD_STATE_RUNNING;
 
                 if (!runnable) {
+                    search_pos = thread_index + 1;
                     continue;
                 }
 
@@ -322,7 +388,7 @@ __CGN_EXPORT void __cgn_scheduler(void) {
 
                 // Won't loop after loading new ctx; increment thread position for next
                 // access to scheduler
-                ++__cgn_scheduled_thread_pos;
+                __cgn_scheduled_thread_pos = thread_index + 1;
 
                 __asm__ __volatile__("" ::: "memory"); // memory barrier to ensure compiler doesn't reorder loads and stores in a breaking way
                 __cgn_loadctx(&staged_thread->ctx, staged_thread);
@@ -375,13 +441,17 @@ __CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack) {
         }
     }
 
-    __CGNThread *t;
-    uint32_t pos = 0;
-    // Treat the unused_threads int as an array of bits and find the index
-    // of the most significant bit
-    for (t = &block->threads[0]; t->in_use; ++pos, ++t);
+    int64_t free_slot = __cgn_block_find_free_slot(block);
+    if (free_slot < 0) {
+        block = add_block();
+        block_pos = __cgn_threadlist.block_count - 1;
+        free_slot = __cgn_block_find_free_slot(block);
+    }
 
-    t->in_use = 1;
+    uint32_t pos = (uint32_t)free_slot;
+    __CGNThread *t = &block->threads[pos];
+
+    __cgn_block_set_in_use(block, pos);
     t->state = __CGN_THREAD_STATE_READY;
 
     t->id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
@@ -401,6 +471,8 @@ __CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos) {
 
     *t = (__CGNThread){0};
     t->state = __CGN_THREAD_STATE_READY;
+
+    __cgn_block_clear_in_use(block, pos);
 
     --__cgn_threadlist.thread_count;
     --block->used_thread_count;

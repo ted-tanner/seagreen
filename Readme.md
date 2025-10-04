@@ -29,6 +29,7 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
   - The segfault is happening in async_yield() right after we loadctx and return program flow back to async_yield() and then try to assign to a stack variable. The segfault is a stack problem.
   - Are we assigning the right pointer as the stack for newly created threads?
 * Documentation
+* Ready/waiting state bits and the yield toggle into a single 64-bit word with bitfields
 * The scheduler thread doesn't need to be a typical thread. It just needs its own stack and context struct, which can be threadlocal variables. Its stack should have the same mprotect() guard as other stacks (see `add_block()`).
 * Can/should we just use setjmp
 * Can we make it so the functions can return data of arbitrary size (rather than the current 8-byte return values)?
@@ -40,8 +41,3 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
 * Multithreaded scheduler (in a separate header).
   - Linked list for threads that is synchronized using something similar to Linux's RCU.
   - Blocking thread pool for making synchronous functions async (sort of)
-
-
-loadctx should return a pointer passed in as an arg
-savenewctx should return 0
-
