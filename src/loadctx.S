@@ -81,11 +81,6 @@ __CGN_LOADCTX_SYMBOL:
     ldp q12, q13, [x0, 176]
     ldp q14, q15, [x0, 208]
 
-    ldr w9, [x0, 240]
-    msr FPCR, x9
-    ldr w9, [x0, 244]
-    msr FPSR, x9
-
     mov x0, x1
 
     br lr

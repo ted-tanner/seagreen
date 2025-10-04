@@ -9,7 +9,8 @@ _Thread_local __CGNThreadList __cgn_threadlist = {0};
 
 _Thread_local __CGNThread *__cgn_curr_thread = 0;
 _Thread_local __CGNThread *__cgn_main_thread = 0;
-_Thread_local __CGNThread *__cgn_sched_thread = 0;
+_Thread_local __CGNThread __cgn_sched_thread_obj = {0};
+_Thread_local void *__cgn_sched_stack_alloc = 0;
 
 _Thread_local __CGNThreadBlock *__cgn_scheduled_block = 0;
 _Thread_local uint32_t __cgn_scheduled_block_pos = 0;
@@ -208,12 +209,45 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     __cgn_scheduled_block_pos = 0;
     __cgn_scheduled_thread_pos = 0;
 
-    void *sched_stack;
-    __cgn_sched_thread = __cgn_add_thread(&sched_stack);
+    uint64_t sched_alloc_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
 
-    __cgn_sched_thread->ctx.lr = (uint64_t)__cgn_scheduler;
-    __cgn_sched_thread->ctx.sp = (uint64_t)sched_stack;
-    __cgn_sched_thread->state = __CGN_THREAD_STATE_READY;
+#if !defined(_WIN32)
+    // MAP_STACK doesn't exist on macOS
+#ifndef MAP_STACK
+#define MAP_STACK 0
+#endif
+
+    void *sched_alloc =
+        mmap(0, sched_alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK, -1, 0);
+    __cgn_check_malloc(sched_alloc);
+
+    // Put guard page at start; stack grows downward after it
+    mprotect((char *)sched_alloc + __cgn_pagesize, SEAGREEN_MAX_STACK_SIZE, PROT_READ | PROT_WRITE);
+#else
+    void *sched_alloc =
+        VirtualAlloc(0, sched_alloc_size, MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS);
+    __cgn_check_malloc(sched_alloc);
+
+    DWORD _oldprot;
+    VirtualProtect((char *)sched_alloc + __cgn_pagesize, SEAGREEN_MAX_STACK_SIZE, PAGE_READWRITE, &_oldprot);
+#endif
+
+    void *sched_stack = (char *)sched_alloc + SEAGREEN_MAX_STACK_SIZE;
+
+    __cgn_sched_stack_alloc = sched_alloc;
+    __cgn_sched_thread_obj = (__CGNThread){0};
+
+#if defined(__aarch64__)
+    __cgn_sched_thread_obj.ctx.lr = (uint64_t)__cgn_scheduler;
+    __cgn_sched_thread_obj.ctx.sp = (uint64_t)sched_stack;
+#elif defined(__x86_64__)
+    __cgn_sched_thread_obj.ctx.rip = (uint64_t)__cgn_scheduler;
+    __cgn_sched_thread_obj.ctx.rsp = (uint64_t)sched_stack;
+#elif defined(__riscv__)
+    __cgn_sched_thread_obj.ctx.ra = (uint64_t)__cgn_scheduler;
+    __cgn_sched_thread_obj.ctx.sp = (uint64_t)sched_stack;
+#endif
+    __cgn_sched_thread_obj.state = __CGN_THREAD_STATE_READY;
 }
 
 __CGN_EXPORT void seagreen_free_rt(void) {
@@ -252,11 +286,23 @@ __CGN_EXPORT void seagreen_free_rt(void) {
 
     __cgn_curr_thread = 0;
     __cgn_main_thread = 0;
-    __cgn_sched_thread = 0;
 
     __cgn_scheduled_block = 0;
     __cgn_scheduled_block_pos = 0;
     __cgn_scheduled_thread_pos = 0;
+
+    uint64_t sched_alloc_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
+#if !defined(_WIN32)
+    if (__cgn_sched_stack_alloc) {
+        munmap(__cgn_sched_stack_alloc, sched_alloc_size);
+    }
+#else
+    if (__cgn_sched_stack_alloc) {
+        VirtualFree(__cgn_sched_stack_alloc, 0, MEM_RELEASE);
+    }
+#endif
+
+    __cgn_sched_stack_alloc = 0;
 }
 
 __CGN_EXPORT void async_yield(void) {
@@ -271,15 +317,15 @@ __CGN_EXPORT void async_yield(void) {
 
     if (temp_yield_toggle) {
         __CGNThread *running_thread = __cgn_curr_thread;
-        __cgn_curr_thread = __cgn_sched_thread;
+        __cgn_curr_thread = &__cgn_sched_thread_obj;
 
         if (running_thread->state == __CGN_THREAD_STATE_RUNNING) {
             running_thread->state = __CGN_THREAD_STATE_READY;
         }
 
-        __cgn_sched_thread->state = __CGN_THREAD_STATE_RUNNING;
+        __cgn_sched_thread_obj.state = __CGN_THREAD_STATE_RUNNING;
         __asm__ __volatile__("" ::: "memory");
-        __cgn_loadctx(&__cgn_sched_thread->ctx, __cgn_sched_thread);
+        __cgn_loadctx(&__cgn_sched_thread_obj.ctx, &__cgn_sched_thread_obj);
     }
 }
 
@@ -309,12 +355,12 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
             if (temp_toggle) {
                 // Switch to the dedicated scheduler thread
                 __CGNThread *waiting_thread = __cgn_curr_thread;
-                __cgn_curr_thread = __cgn_sched_thread;
+                __cgn_curr_thread = &__cgn_sched_thread_obj;
 
                 waiting_thread->state = __CGN_THREAD_STATE_WAITING;
-                __cgn_sched_thread->state = __CGN_THREAD_STATE_RUNNING;
+                __cgn_sched_thread_obj.state = __CGN_THREAD_STATE_RUNNING;
                 __asm__ __volatile__("" ::: "memory");
-                __cgn_loadctx(&__cgn_sched_thread->ctx, __cgn_sched_thread);
+                __cgn_loadctx(&__cgn_sched_thread_obj.ctx, &__cgn_sched_thread_obj);
             }
         }
 
@@ -346,12 +392,6 @@ __CGN_EXPORT void __cgn_scheduler(void) {
 
                 size_t thread_index = (size_t)next_in_use;
                 __CGNThread *staged_thread = &__cgn_scheduled_block->threads[thread_index];
-
-                // Never schedule the dedicated scheduler thread itself
-                if (staged_thread == __cgn_sched_thread) {
-                    search_pos = thread_index + 1;
-                    continue;
-                }
 
                 if (staged_thread->state == __CGN_THREAD_STATE_WAITING) {
                     __CGNThread *awaited_thread =

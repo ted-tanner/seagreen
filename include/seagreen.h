@@ -213,26 +213,26 @@ __CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
 #define async __attribute__((noinline))
 
 extern _Thread_local __CGNThread *__cgn_curr_thread;
-extern _Thread_local __CGNThread *__cgn_sched_thread;
+extern _Thread_local __CGNThread __cgn_sched_thread_obj;
 
-#define async_run(Fn) ({                                \
-            void *stack;                                \
-            __CGNThread *t = __cgn_add_thread(&stack);  \
-                                                        \
-            t = __cgn_savenewctx(&t->ctx, stack, t);    \
-                                                        \
-            if (t == __cgn_curr_thread) {               \
-                t->return_val = (uint64_t) Fn;          \
-                t->state = __CGN_THREAD_STATE_DONE;     \
-                __cgn_curr_thread = __cgn_sched_thread; \
-                __cgn_sched_thread->yield_toggle = 1;   \
-                __asm__ __volatile__("" ::: "memory");  \
-                __cgn_loadctx(&__cgn_sched_thread->ctx, __cgn_sched_thread); \
-                /* This should never be reached */      \
-                abort();                                \
-            }                                           \
-                                                        \
-            (CGNThreadHandle) t->id;                    \
+#define async_run(Fn) ({                                        \
+            void *stack;                                        \
+            __CGNThread *t = __cgn_add_thread(&stack);          \
+                                                                \
+            t = __cgn_savenewctx(&t->ctx, stack, t);            \
+                                                                \
+            if (t == __cgn_curr_thread) {                       \
+                t->return_val = (uint64_t) Fn;                  \
+                t->state = __CGN_THREAD_STATE_DONE;             \
+                __cgn_curr_thread = &__cgn_sched_thread_obj;    \
+                __cgn_sched_thread_obj.yield_toggle = 1;        \
+                __asm__ __volatile__("" ::: "memory");          \
+                __cgn_loadctx(&__cgn_sched_thread_obj.ctx, &__cgn_sched_thread_obj); \
+                /* This should never be reached */              \
+                abort();                                        \
+            }                                                   \
+                                                                \
+            (CGNThreadHandle) t->id;                            \
         })
 
 #define run_as_sync(Fn)                         \
