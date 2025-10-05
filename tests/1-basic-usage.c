@@ -6,9 +6,6 @@
 static _Bool running_func_is_bar[8] = {0};
 static int pos = 0;
 
-static int ran_async = 0;
-static int ran_sync = 0;
-
 async int foo(int a, int b) {
     printf("foo() - 1\n");
     running_func_is_bar[pos++] = 0;
@@ -47,18 +44,10 @@ async int bar(int a) {
     return a + 5;
 }
 
-async int to_run_sync(_Bool as_sync) {
-    async_yield();
-    async_yield();
+static int counter = 0;
 
-    if (as_sync) {
-        ran_sync = 1;
-    } else {
-        ran_async = 1;
-    }
-
-    async_yield();
-
+async int increment_counter(void) {
+    ++counter;
     return 0;
 }
 
@@ -92,12 +81,10 @@ int main(void) {
         assert(running_func_is_bar[i] == i % 2);
     }
 
-    async_run(to_run_sync(0));
-    run_as_sync(to_run_sync(1));
-    async_run(to_run_sync(0));
+    async_run(increment_counter());
+    async_run(increment_counter());
 
-    assert(!ran_async);
-    assert(ran_sync);
+    assert(counter == 0);
 
     seagreen_free_rt();
 

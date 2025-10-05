@@ -76,7 +76,7 @@ typedef struct __CGNThreadCtx_ {
     __CGNVector128 xmm13;
     __CGNVector128 xmm14;
     __CGNVector128 xmm15;
-    
+
     uint32_t mxcsr;
 } __CGNThreadCtx;
 
@@ -156,7 +156,6 @@ typedef struct __CGNThread_ {
 
     __CGNThreadState state;
     _Bool yield_toggle;
-    _Bool disable_yield;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -234,14 +233,6 @@ extern _Thread_local __CGNThread __cgn_sched_thread_obj;
                                                                 \
             (CGNThreadHandle) t->id;                            \
         })
-
-#define run_as_sync(Fn)                         \
-    ({                                          \
-        __cgn_curr_thread->disable_yield = 1;   \
-        uint64_t retval = Fn;                   \
-        __cgn_curr_thread->disable_yield = 0;   \
-        retval;                                 \
-    })
 
 #define SEAGREEN_H
 #endif

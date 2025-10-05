@@ -306,10 +306,6 @@ __CGN_EXPORT void seagreen_free_rt(void) {
 }
 
 __CGN_EXPORT void async_yield(void) {
-    if (__cgn_curr_thread->disable_yield) {
-        return;
-    }
-
     __cgn_savectx(&__cgn_curr_thread->ctx);
 
     _Bool temp_yield_toggle = __cgn_curr_thread->yield_toggle;
@@ -345,23 +341,19 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
         /* won't be scheduled until awaited thread has */
         /* finished its execution */
 
-        // Use a loop to handle spurious wakeups (scheduler exiting to us before awaited thread is done)
-        while (t->state != __CGN_THREAD_STATE_DONE) {
-            __cgn_savectx(&__cgn_curr_thread->ctx);
+        __cgn_savectx(&__cgn_curr_thread->ctx);
 
-            _Bool temp_toggle = __cgn_curr_thread->yield_toggle;
-            __cgn_curr_thread->yield_toggle = !__cgn_curr_thread->yield_toggle;
+        _Bool temp_yield_toggle = __cgn_curr_thread->yield_toggle;
+        __cgn_curr_thread->yield_toggle = !__cgn_curr_thread->yield_toggle;
 
-            if (temp_toggle) {
-                // Switch to the dedicated scheduler thread
-                __CGNThread *waiting_thread = __cgn_curr_thread;
-                __cgn_curr_thread = &__cgn_sched_thread_obj;
+        if (temp_yield_toggle) {
+            __CGNThread *waiting_thread = __cgn_curr_thread;
+            __cgn_curr_thread = &__cgn_sched_thread_obj;
 
-                waiting_thread->state = __CGN_THREAD_STATE_WAITING;
-                __cgn_sched_thread_obj.state = __CGN_THREAD_STATE_RUNNING;
-                __asm__ __volatile__("" ::: "memory");
-                __cgn_loadctx(&__cgn_sched_thread_obj.ctx, &__cgn_sched_thread_obj);
-            }
+            waiting_thread->state = __CGN_THREAD_STATE_WAITING;
+            __cgn_sched_thread_obj.state = __CGN_THREAD_STATE_RUNNING;
+            __asm__ __volatile__("" ::: "memory");
+            __cgn_loadctx(&__cgn_sched_thread_obj.ctx, &__cgn_sched_thread_obj);
         }
 
         __asm__ __volatile__("" ::: "memory");
