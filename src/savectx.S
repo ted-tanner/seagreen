@@ -162,14 +162,6 @@ __CGN_SAVENEWCTX_SYMBOL:
     mrs x9, FPSR
     str w9, [x0, 108]
 
-    movi v8.16b, #0
-    movi v9.16b, #0
-    movi v10.16b, #0
-    movi v11.16b, #0
-    movi v12.16b, #0
-    movi v13.16b, #0
-    movi v14.16b, #0
-    movi v15.16b, #0
     stp q8, q9, [x0, 112]
     stp q10, q11, [x0, 144]
     stp q12, q13, [x0, 176]
