@@ -178,8 +178,8 @@ typedef struct __CGNThreadList_ {
 
 extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThreadCtx *ctx);
 extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_jumpwithstack(void *func_ptr, void *stack_ptr);
-extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savectx(__CGNThread *t, __CGNThreadCtx *ctx);
-extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savenewctx(__CGNThread *t, __CGNThreadCtx *ctx, void *stack);
+extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savectx(__CGNThreadCtx *ctx);
+extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savenewctx(__CGNThreadCtx *ctx, void *stack);
 
 // mmap returns -1 on error, check ptr < 1 rather than !ptr
 #define __cgn_check_malloc(ptr)                         \
@@ -216,7 +216,8 @@ extern _Thread_local void *__cgn_sched_stack_alloc;
             void *stack;                                        \
             __CGNThread *t = __cgn_add_thread(&stack);          \
                                                                 \
-            if (!__cgn_savenewctx(t, &t->ctx, stack)) {         \
+            volatile _Bool loaded = __cgn_savenewctx(&t->ctx, stack); \
+            if (loaded) {                                       \
                 t->return_val = (uint64_t) Fn;                  \
                 t->state = __CGN_THREAD_STATE_DONE;             \
                 __asm__ __volatile__("" ::: "memory");          \

@@ -23,6 +23,7 @@ __CGN_LOADCTX_SYMBOL:
     movq 56(%rdi), %rbx
 
     movq %rax, %r11
+    movq $1, %rax
     jmp *%r11
 
 .balign 4
@@ -63,6 +64,7 @@ __CGN_LOADCTX_SYMBOL:
     ldmxcsr 240(%rcx)
 
     movq %rax, %r11
+    movq $1, %rax
     jmp *%r11
 
 .balign 4
@@ -94,6 +96,7 @@ __CGN_LOADCTX_SYMBOL:
     ldp q12, q13, [x0, 176]
     ldp q14, q15, [x0, 208]
 
+    mov w0, #1
     br lr
 
 .balign 4
@@ -121,6 +124,7 @@ __CGN_LOADCTX_SYMBOL:
     ld s10, 96(a0)
     ld s11, 104(a0)
 
+    li a0, 1
     ret
 
 .balign 4

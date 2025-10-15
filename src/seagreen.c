@@ -295,7 +295,8 @@ __CGN_EXPORT void seagreen_free_rt(void) {
 }
 
 __CGN_EXPORT void async_yield(void) {
-    if (__cgn_savectx(__cgn_curr_thread, &__cgn_curr_thread->ctx)) {
+    volatile _Bool loaded = __cgn_savectx(&__cgn_curr_thread->ctx);
+    if (!loaded) {
         if (__cgn_curr_thread->state == __CGN_THREAD_STATE_RUNNING) {
             __cgn_curr_thread->state = __CGN_THREAD_STATE_READY;
         }
@@ -320,7 +321,8 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
         /* won't be scheduled until awaited thread has */
         /* finished its execution */
 
-        if (__cgn_savectx(__cgn_curr_thread, &__cgn_curr_thread->ctx)) {
+        volatile _Bool loaded = __cgn_savectx(&__cgn_curr_thread->ctx);
+        if (!loaded) {
             __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
             
             __asm__ __volatile__("" ::: "memory");
