@@ -178,7 +178,8 @@ typedef struct __CGNThreadList_ {
 
 // Two of these functions return the thread pointer such that it is available when
 // the thread is resumed and the stack may have changed.
-extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThread *t, __CGNThreadCtx *ctx);
+extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThreadCtx *ctx);
+extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_jumpwithstack(void *func_ptr, void *stack_ptr);
 extern __CGN_EXPORT __attribute__((noinline, returns_twice)) __CGNThread *__cgn_savectx(__CGNThread *t, __CGNThreadCtx *ctx);
 extern __CGN_EXPORT __attribute__((noinline, returns_twice)) __CGNThread *__cgn_savenewctx(__CGNThread *t, __CGNThreadCtx *ctx, void *stack);
 
@@ -211,7 +212,7 @@ __CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
 #define async __attribute__((noinline))
 
 extern _Thread_local __CGNThread *__cgn_curr_thread;
-extern _Thread_local __CGNThread __cgn_sched_thread_obj;
+extern _Thread_local void *__cgn_sched_stack_alloc;
 
 #define async_run(Fn) ({                                        \
             void *stack;                                        \
@@ -222,9 +223,8 @@ extern _Thread_local __CGNThread __cgn_sched_thread_obj;
             if (t == __cgn_curr_thread) {                       \
                 t->return_val = (uint64_t) Fn;                  \
                 t->state = __CGN_THREAD_STATE_DONE;             \
-                __cgn_curr_thread = &__cgn_sched_thread_obj;    \
                 __asm__ __volatile__("" ::: "memory");          \
-                __cgn_loadctx(&__cgn_sched_thread_obj, &__cgn_sched_thread_obj.ctx); \
+                __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE); \
             }                                                   \
                                                                 \
             (CGNThreadHandle) t->id;                            \

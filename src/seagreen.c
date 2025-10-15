@@ -9,7 +9,6 @@ _Thread_local __CGNThreadList __cgn_threadlist = {0};
 
 _Thread_local __CGNThread *__cgn_curr_thread = 0;
 _Thread_local __CGNThread *__cgn_main_thread = 0;
-_Thread_local __CGNThread __cgn_sched_thread_obj = {0};
 _Thread_local void *__cgn_sched_stack_alloc = 0;
 
 _Thread_local __CGNThreadBlock *__cgn_scheduled_block = 0;
@@ -237,23 +236,7 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     VirtualProtect((char *)sched_alloc + __cgn_pagesize, SEAGREEN_MAX_STACK_SIZE, PAGE_READWRITE, &_oldprot);
 #endif
 
-    void *sched_stack = (char *)sched_alloc + SEAGREEN_MAX_STACK_SIZE;
-
     __cgn_sched_stack_alloc = sched_alloc;
-    __cgn_sched_thread_obj = (__CGNThread){0};
-
-#if defined(__aarch64__)
-    __cgn_sched_thread_obj.ctx.lr = (uint64_t)&__cgn_scheduler;
-    __cgn_sched_thread_obj.ctx.sp = (uint64_t)sched_stack;
-#elif defined(__x86_64__)
-    __cgn_sched_thread_obj.ctx.rip = (uint64_t)&__cgn_scheduler;
-    __cgn_sched_thread_obj.ctx.rsp = (uint64_t)sched_stack;
-#elif defined(__riscv__)
-    __cgn_sched_thread_obj.ctx.ra = (uint64_t)&__cgn_scheduler;
-    __cgn_sched_thread_obj.ctx.sp = (uint64_t)sched_stack;
-#endif
-
-    __cgn_sched_thread_obj.state = __CGN_THREAD_STATE_READY;
 }
 
 __CGN_EXPORT void seagreen_free_rt(void) {
@@ -318,7 +301,7 @@ __CGN_EXPORT void async_yield(void) {
         }
 
         __asm__ __volatile__("" ::: "memory");
-        __cgn_loadctx(&__cgn_sched_thread_obj, &__cgn_sched_thread_obj.ctx);
+        __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE);
     }
 }
 
@@ -341,7 +324,7 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
             __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
             
             __asm__ __volatile__("" ::: "memory");
-            __cgn_loadctx(&__cgn_sched_thread_obj, &__cgn_sched_thread_obj.ctx);
+            __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE);
         }
 
         __asm__ __volatile__("" ::: "memory");
@@ -411,7 +394,7 @@ __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_scheduler(void) {
                 __cgn_scheduled_thread_pos = thread_index + 1;
 
                 __asm__ __volatile__("" ::: "memory"); // memory barrier to ensure compiler doesn't reorder loads and stores in a breaking way
-                __cgn_loadctx(staged_thread, &staged_thread->ctx);
+                __cgn_loadctx(&staged_thread->ctx);
             }
 
             __cgn_scheduled_thread_pos = 0;
