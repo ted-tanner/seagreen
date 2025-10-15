@@ -108,10 +108,16 @@ void print_threads(void) {
             uint32_t id = i * __CGN_THREAD_BLOCK_SIZE + pos;
             __CGNThread *thread = &block->threads[pos];
 
+#if defined(__x86_64__)
+            uint64_t stack_ptr = thread->ctx.rsp;
+#else
+            uint64_t stack_ptr = thread->ctx.sp;
+#endif
+
             printf("thread %u:\n\tstate: %s\n\tawaiting: %u\n\tawait count: "
-                   "%u\n\tptr: %p\n\n",
+                   "%u\n\tptr: %p\n\tstack ptr: %p\n\n",
                    id, state_to_name(thread->state), thread->awaited_thread_id,
-                   thread->awaiting_thread_count, thread);
+                   thread->awaiting_thread_count, thread, (void*)stack_ptr);
 
             ++pos;
         }
@@ -199,7 +205,6 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     __cgn_main_thread = &__cgn_threadlist.head->threads[0];
     __cgn_block_set_in_use(block, 0);
     __cgn_main_thread->state = __CGN_THREAD_STATE_RUNNING;
-    __cgn_main_thread->yield_toggle = 1;
 
     block->used_thread_count = 1;
 
@@ -238,15 +243,16 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     __cgn_sched_thread_obj = (__CGNThread){0};
 
 #if defined(__aarch64__)
-    __cgn_sched_thread_obj.ctx.lr = (uint64_t)__cgn_scheduler;
+    __cgn_sched_thread_obj.ctx.lr = (uint64_t)&__cgn_scheduler;
     __cgn_sched_thread_obj.ctx.sp = (uint64_t)sched_stack;
 #elif defined(__x86_64__)
-    __cgn_sched_thread_obj.ctx.rip = (uint64_t)__cgn_scheduler;
+    __cgn_sched_thread_obj.ctx.rip = (uint64_t)&__cgn_scheduler;
     __cgn_sched_thread_obj.ctx.rsp = (uint64_t)sched_stack;
 #elif defined(__riscv__)
-    __cgn_sched_thread_obj.ctx.ra = (uint64_t)__cgn_scheduler;
+    __cgn_sched_thread_obj.ctx.ra = (uint64_t)&__cgn_scheduler;
     __cgn_sched_thread_obj.ctx.sp = (uint64_t)sched_stack;
 #endif
+
     __cgn_sched_thread_obj.state = __CGN_THREAD_STATE_READY;
 }
 
@@ -306,28 +312,18 @@ __CGN_EXPORT void seagreen_free_rt(void) {
 }
 
 __CGN_EXPORT void async_yield(void) {
-    __cgn_savectx(&__cgn_curr_thread->ctx);
-
-    _Bool temp_yield_toggle = __cgn_curr_thread->yield_toggle;
-    __cgn_curr_thread->yield_toggle = !__cgn_curr_thread->yield_toggle;
-
-    if (temp_yield_toggle) {
-        __CGNThread *running_thread = __cgn_curr_thread;
-        __cgn_curr_thread = &__cgn_sched_thread_obj;
-
-        if (running_thread->state == __CGN_THREAD_STATE_RUNNING) {
-            running_thread->state = __CGN_THREAD_STATE_READY;
+    if (__cgn_savectx(__cgn_curr_thread, &__cgn_curr_thread->ctx) == __cgn_curr_thread) {
+        if (__cgn_curr_thread->state == __CGN_THREAD_STATE_RUNNING) {
+            __cgn_curr_thread->state = __CGN_THREAD_STATE_READY;
         }
 
-        __cgn_sched_thread_obj.state = __CGN_THREAD_STATE_RUNNING;
         __asm__ __volatile__("" ::: "memory");
-        __cgn_loadctx(&__cgn_sched_thread_obj.ctx, &__cgn_sched_thread_obj);
+        __cgn_loadctx(&__cgn_sched_thread_obj, &__cgn_sched_thread_obj.ctx);
     }
 }
 
 __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
     __cgn_curr_thread->awaited_thread_id = handle;
-    __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
 
     uint32_t pos = handle % __CGN_THREAD_BLOCK_SIZE;
     __CGNThreadBlock *block = __cgn_get_block(handle);
@@ -341,19 +337,11 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
         /* won't be scheduled until awaited thread has */
         /* finished its execution */
 
-        __cgn_savectx(&__cgn_curr_thread->ctx);
-
-        _Bool temp_yield_toggle = __cgn_curr_thread->yield_toggle;
-        __cgn_curr_thread->yield_toggle = !__cgn_curr_thread->yield_toggle;
-
-        if (temp_yield_toggle) {
-            __CGNThread *waiting_thread = __cgn_curr_thread;
-            __cgn_curr_thread = &__cgn_sched_thread_obj;
-
-            waiting_thread->state = __CGN_THREAD_STATE_WAITING;
-            __cgn_sched_thread_obj.state = __CGN_THREAD_STATE_RUNNING;
+        if (__cgn_savectx(__cgn_curr_thread, &__cgn_curr_thread->ctx) == __cgn_curr_thread) {
+            __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
+            
             __asm__ __volatile__("" ::: "memory");
-            __cgn_loadctx(&__cgn_sched_thread_obj.ctx, &__cgn_sched_thread_obj);
+            __cgn_loadctx(&__cgn_sched_thread_obj, &__cgn_sched_thread_obj.ctx);
         }
 
         __asm__ __volatile__("" ::: "memory");
@@ -366,7 +354,7 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
     return return_val;
 }
 
-__CGN_EXPORT void __cgn_scheduler(void) {
+__CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_scheduler(void) {
     while (1) {
         for (; __cgn_scheduled_block; __cgn_scheduled_block = __cgn_scheduled_block->next, ++__cgn_scheduled_block_pos) {
             if (!__cgn_scheduled_block->used_thread_count) {
@@ -423,9 +411,7 @@ __CGN_EXPORT void __cgn_scheduler(void) {
                 __cgn_scheduled_thread_pos = thread_index + 1;
 
                 __asm__ __volatile__("" ::: "memory"); // memory barrier to ensure compiler doesn't reorder loads and stores in a breaking way
-                __cgn_loadctx(&staged_thread->ctx, staged_thread);
-                // unreachable
-                abort();
+                __cgn_loadctx(staged_thread, &staged_thread->ctx);
             }
 
             __cgn_scheduled_thread_pos = 0;
@@ -486,8 +472,12 @@ __CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack) {
     __cgn_block_set_in_use(block, pos);
     t->state = __CGN_THREAD_STATE_READY;
 
-    t->id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
-    t->yield_toggle = 1;
+    uint32_t new_id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
+    if (new_id == UINT32_MAX) {
+        fprintf(stderr, "seagreen: Maximum thread ID reached (UINT32_MAX)\n");
+        abort();
+    }
+    t->id = new_id;
 
     ++__cgn_threadlist.thread_count;
     ++block->used_thread_count;

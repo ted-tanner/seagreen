@@ -1,11 +1,11 @@
 #ifndef SEAGREEN_H
 
 #if !defined(__x86_64__) && !defined(__aarch64__) && !defined(__riscv__)
-#error "seagreenlib does not support this architecture"
+#error "libseagreen does not support this architecture"
 #endif
 
 #if !defined __GNUC__ && !defined __clang__
-#warning "seagreenlib only supports the gcc and clang compilers"
+#warning "libseagreen only supports the gcc and clang compilers"
 #endif
 
 #include <stdint.h>
@@ -19,7 +19,7 @@
 #include <memoryapi.h>
 #include <sysinfoapi.h>
 #else
-#warning "seagreenlib only supports Unix-like and Windows 64-bit systems"
+#warning "libseagreen only supports Unix-like and Windows 64-bit systems"
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
@@ -155,7 +155,6 @@ typedef struct __CGNThread_ {
     uint32_t awaiting_thread_count;
 
     __CGNThreadState state;
-    _Bool yield_toggle;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -179,14 +178,14 @@ typedef struct __CGNThreadList_ {
 
 // Two of these functions return the thread pointer such that it is available when
 // the thread is resumed and the stack may have changed.
-extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThreadCtx *ctx, __CGNThread *t);
-extern __CGN_EXPORT __attribute__((noinline, returns_twice)) void __cgn_savectx(__CGNThreadCtx *ctx);
-extern __CGN_EXPORT __attribute__((noinline, returns_twice)) __CGNThread *__cgn_savenewctx(__CGNThreadCtx *ctx, void *stack, __CGNThread *t);
+extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThread *t, __CGNThreadCtx *ctx);
+extern __CGN_EXPORT __attribute__((noinline, returns_twice)) __CGNThread *__cgn_savectx(__CGNThread *t, __CGNThreadCtx *ctx);
+extern __CGN_EXPORT __attribute__((noinline, returns_twice)) __CGNThread *__cgn_savenewctx(__CGNThread *t, __CGNThreadCtx *ctx, void *stack);
 
 // mmap returns -1 on error, check ptr < 1 rather than !ptr
 #define __cgn_check_malloc(ptr)                         \
     if ((void *)ptr < (void *)1) {                      \
-        fprintf(stderr, "memory allocation failure\n"); \
+        fprintf(stderr, "seagreen: memory allocation failure\n"); \
         abort();                                        \
     }
 
@@ -201,7 +200,7 @@ __CGN_EXPORT void seagreen_free_rt(void);
 __CGN_EXPORT void async_yield(void);
 __CGN_EXPORT uint64_t await(CGNThreadHandle handle);
 
-__CGN_EXPORT void __cgn_scheduler(void);
+__CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_scheduler(void);
 
 __CGN_EXPORT __CGNThreadBlock *__cgn_get_block(uint32_t id);
 __CGN_EXPORT __CGNThread *__cgn_get_thread(uint32_t id);
@@ -218,17 +217,14 @@ extern _Thread_local __CGNThread __cgn_sched_thread_obj;
             void *stack;                                        \
             __CGNThread *t = __cgn_add_thread(&stack);          \
                                                                 \
-            t = __cgn_savenewctx(&t->ctx, stack, t);            \
+            t = __cgn_savenewctx(t, &t->ctx, stack);            \
                                                                 \
             if (t == __cgn_curr_thread) {                       \
                 t->return_val = (uint64_t) Fn;                  \
                 t->state = __CGN_THREAD_STATE_DONE;             \
                 __cgn_curr_thread = &__cgn_sched_thread_obj;    \
-                __cgn_sched_thread_obj.yield_toggle = 1;        \
                 __asm__ __volatile__("" ::: "memory");          \
-                __cgn_loadctx(&__cgn_sched_thread_obj.ctx, &__cgn_sched_thread_obj); \
-                /* This should never be reached */              \
-                abort();                                        \
+                __cgn_loadctx(&__cgn_sched_thread_obj, &__cgn_sched_thread_obj.ctx); \
             }                                                   \
                                                                 \
             (CGNThreadHandle) t->id;                            \

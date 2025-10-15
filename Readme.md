@@ -1,6 +1,6 @@
 ![SeaGreen Pirate Ship Icon](/seagreen-pirate-ship-icon.svg)
 
-# SeaGreen (seagreenlib)
+# SeaGreen (libseagreen) - `async`/`await` for C
 
 An easy-to-use green threading library ~~for Sea~~ for C.
 
@@ -10,7 +10,7 @@ SeaGreen uses [coroutines](https://en.wikipedia.org/wiki/Coroutine) to change pr
 
 Some niceties of SeaGreen:
 
-* No [function coloring](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/) difficulties. Green threads may be launched from anywhere in your program, making it super easy to integrate seagreenlib into existing codebases.
+* No [function coloring](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/) difficulties. Green threads may be launched from anywhere in your program, making it super easy to integrate libseagreen into existing codebases.
 * SeaGreen is intuitive to use and won't turn your existing code into spaghetti.
 
 ## The SeaGreen Pirate's Code (invariants/rules for using the library)
@@ -25,11 +25,12 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
 
 ## TODO
 
-* Can we get rid of the thread's `yield_toggle` and instead have `savectx()` return something different when loading the ctx in than when continuing on?
+* Improve readme with examples upfront. Focus on marketability upfront and then documentation later on.
 * Thoughts on current segfault problem in test #2
   - The segfault is happening in async_yield() right after we loadctx and return program flow back to async_yield() and then try to assign to a stack variable. The segfault is a stack problem.
   - The stack we are restoring to is the main thread stack that was saved in `await()`. However, `loadctx()` is taking us to `async_yield()` (where there is another call to `savectx()`). The stack for the main thread will not have the vars needed for `async_yield()`
 * Add a test that checks `await()`ing a thread from inside another thread being `await()`ed
+* In `1-basic-usage.c`, there is a list of things that should be tested
 * See if AI can think of more tests that should be added
 * Documentation
 * Ready/waiting state bits and the yield toggle into a single 64-bit word with bitfields

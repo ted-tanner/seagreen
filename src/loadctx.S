@@ -10,17 +10,19 @@
 
 .balign 4
 __CGN_LOADCTX_SYMBOL:
-    movq 0(%rdi), %rbp
-    movq 8(%rdi), %rsp
-    movq 16(%rdi), %rax
-    movq 24(%rdi), %r12
-    movq 32(%rdi), %r13
-    movq 40(%rdi), %r14
-    movq 48(%rdi), %r15
-    movq 56(%rdi), %rbx
+    movq 0(%rsi), %rbp
+    movq 8(%rsi), %rsp
+    movq 16(%rsi), %rax
+    movq 24(%rsi), %r12
+    movq 32(%rsi), %r13
+    movq 40(%rsi), %r14
+    movq 48(%rsi), %r15
+    movq 56(%rsi), %rbx
 
-    movq %rsi, 8(%rsp)
-    jmp *%rax
+    movq %rax, %r11
+    movq %rdi, 8(%rsp)
+    movq %rdi, %rax
+    jmp *%r11
 
 #elif defined(__x86_64__) && defined(_WIN64)
 
@@ -29,59 +31,59 @@ __CGN_LOADCTX_SYMBOL_ret_stub:
 
 .balign 4
 __CGN_LOADCTX_SYMBOL:
-    movq 0(%rcx), %rbp
-    movq 8(%rcx), %rsp
-    movq 16(%rcx), %rax
+    movq 0(%rdx), %rbp
+    movq 8(%rdx), %rsp
+    movq 16(%rdx), %rax
 
-    movq 24(%rcx), %r12
-    movq 32(%rcx), %r13
-    movq 40(%rcx), %r14
-    movq 48(%rcx), %r15
-    movq 56(%rcx), %rbx
-    movq 64(%rcx), %rdi
-    movq 72(%rcx), %rsi
+    movq 24(%rdx), %r12
+    movq 32(%rdx), %r13
+    movq 40(%rdx), %r14
+    movq 48(%rdx), %r15
+    movq 56(%rdx), %rbx
+    movq 64(%rdx), %rdi
+    movq 72(%rdx), %rsi
 
-    movdqu 80(%rcx), %xmm6
-    movdqu 96(%rcx), %xmm7
-    movdqu 112(%rcx), %xmm8
-    movdqu 128(%rcx), %xmm9
-    movdqu 144(%rcx), %xmm10
-    movdqu 160(%rcx), %xmm11
-    movdqu 176(%rcx), %xmm12
-    movdqu 192(%rcx), %xmm13
-    movdqu 208(%rcx), %xmm14
-    movdqu 224(%rcx), %xmm15
+    movdqu 80(%rdx), %xmm6
+    movdqu 96(%rdx), %xmm7
+    movdqu 112(%rdx), %xmm8
+    movdqu 128(%rdx), %xmm9
+    movdqu 144(%rdx), %xmm10
+    movdqu 160(%rdx), %xmm11
+    movdqu 176(%rdx), %xmm12
+    movdqu 192(%rdx), %xmm13
+    movdqu 208(%rdx), %xmm14
+    movdqu 224(%rdx), %xmm15
 
-    ldmxcsr 240(%rcx)
+    ldmxcsr 240(%rdx)
 
-    movq %rdx, 8(%rsp)
-    jmp *%rax
+    movq %rax, %r11
+    movq %rcx, 8(%rsp)
+    movq %rcx, %rax
+    jmp *%r11
 
 #elif defined(__aarch64__)
 
 .balign 4
 __CGN_LOADCTX_SYMBOL:
-    ldp lr, x9, [x0, 0]
+    ldp lr, x9, [x1, 0]
     mov sp, x9
 
-    ldp x19, x20, [x0, 16]
-    ldp x21, x22, [x0, 32]
-    ldp x23, x24, [x0, 48]
-    ldp x25, x26, [x0, 64]
-    ldp x27, x28, [x0, 80]
-    ldr x29, [x0, 96]
+    ldp x19, x20, [x1, 16]
+    ldp x21, x22, [x1, 32]
+    ldp x23, x24, [x1, 48]
+    ldp x25, x26, [x1, 64]
+    ldp x27, x28, [x1, 80]
+    ldr x29, [x1, 96]
 
-    ldr w9, [x0, 104]
+    ldr w9, [x1, 104]
     msr FPCR, x9
-    ldr w9, [x0, 108]
+    ldr w9, [x1, 108]
     msr FPSR, x9
 
-    ldp q8, q9, [x0, 112]
-    ldp q10, q11, [x0, 144]
-    ldp q12, q13, [x0, 176]
-    ldp q14, q15, [x0, 208]
-
-    mov x0, x1
+    ldp q8, q9, [x1, 112]
+    ldp q10, q11, [x1, 144]
+    ldp q12, q13, [x1, 176]
+    ldp q14, q15, [x1, 208]
 
     br lr
 
@@ -89,23 +91,21 @@ __CGN_LOADCTX_SYMBOL:
 
 .balign 4
 __CGN_LOADCTX_SYMBOL:
-    ld ra, 0(a0)
-    ld sp, 8(a0)
+    ld ra, 0(a1)
+    ld sp, 8(a1)
 
-    ld s0, 16(a0)
-    ld s1, 24(a0)
-    ld s2, 32(a0)
-    ld s3, 40(a0)
-    ld s4, 48(a0)
-    ld s5, 56(a0)
-    ld s6, 64(a0)
-    ld s7, 72(a0)
-    ld s8, 80(a0)
-    ld s9, 88(a0)
-    ld s10, 96(a0)
-    ld s11, 104(a0)
-
-    mv a0, a1
+    ld s0, 16(a1)
+    ld s1, 24(a1)
+    ld s2, 32(a1)
+    ld s3, 40(a1)
+    ld s4, 48(a1)
+    ld s5, 56(a1)
+    ld s6, 64(a1)
+    ld s7, 72(a1)
+    ld s8, 80(a1)
+    ld s9, 88(a1)
+    ld s10, 96(a1)
+    ld s11, 104(a1)
 
     ret
 
