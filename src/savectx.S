@@ -24,7 +24,7 @@ __CGN_SAVECTX_SYMBOL:
     movq %r15, 48(%rsi)
     movq %rbx, 56(%rsi)
 
-    movq %rdi, %rax
+    movq $1, %rax
     ret
 
 .balign 4
@@ -45,7 +45,7 @@ __CGN_SAVENEWCTX_SYMBOL:
     movq $0, 48(%rsi)
     movq $0, 56(%rsi)
 
-    movq %rdi, %rax
+    movq $1, %rax
 
     ret
 
@@ -79,7 +79,7 @@ __CGN_SAVECTX_SYMBOL:
 
     stmxcsr 240(%rdx)
 
-    movq %rcx, %rax
+    movq $1, %rax
     ret
 
 .balign 4
@@ -114,7 +114,7 @@ __CGN_SAVENEWCTX_SYMBOL:
     movdqu %xmm6, 208(%rdx)
     movdqu %xmm6, 224(%rdx)
 
-    movq %rcx, %rax
+    movq $1, %rax
 
     stmxcsr 240(%rdx)
 
@@ -144,6 +144,7 @@ __CGN_SAVECTX_SYMBOL:
     stp q12, q13, [x1, 176]
     stp q14, q15, [x1, 208]
 
+    mov w0, #1
     ret
 
 .balign 4
@@ -175,6 +176,7 @@ __CGN_SAVENEWCTX_SYMBOL:
     stp q12, q13, [x1, 176]
     stp q14, q15, [x1, 208]
 
+    mov w0, #1
     ret
 
 #elif defined(__riscv__)
@@ -197,6 +199,7 @@ __CGN_SAVECTX_SYMBOL:
     sd s10, 96(a1)
     sd s11, 104(a1)
 
+    li a0, 1
     ret
 
 .balign 4
@@ -217,6 +220,7 @@ __CGN_SAVENEWCTX_SYMBOL:
     sd s10, 96(a1)
     sd s11, 104(a1)
 
+    li a0, 1
     ret
 
 #endif
