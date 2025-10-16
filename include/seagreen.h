@@ -8,6 +8,7 @@
 #warning "libseagreen only supports the gcc and clang compilers"
 #endif
 
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -178,8 +179,8 @@ typedef struct __CGNThreadList_ {
 
 extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThreadCtx *ctx);
 extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_jumpwithstack(void *func_ptr, void *stack_ptr);
-extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savectx(__CGNThreadCtx *ctx);
-extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savenewctx(__CGNThreadCtx *ctx, void *stack);
+extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savectx(volatile __CGNThreadCtx *ctx);
+extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savenewctx(volatile __CGNThreadCtx *ctx, void *stack);
 
 // mmap returns -1 on error, check ptr < 1 rather than !ptr
 #define __cgn_check_malloc(ptr)                         \
@@ -193,6 +194,7 @@ typedef uint64_t CGNThreadHandle;
 // The stack space allocated for each thread. Many of these pages will remain
 // untouched
 #define SEAGREEN_MAX_STACK_SIZE 1024 * 1024 * 2 // 2 MB
+_Static_assert((SEAGREEN_MAX_STACK_SIZE % 16) == 0, "stack size must be 16-byte aligned");
 
 __CGN_EXPORT void seagreen_init_rt(void);
 __CGN_EXPORT void seagreen_free_rt(void);
@@ -203,26 +205,29 @@ __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_scheduler(void);
 
 __CGN_EXPORT __CGNThreadBlock *__cgn_get_block(uint32_t id);
 __CGN_EXPORT __CGNThread *__cgn_get_thread(uint32_t id);
-__CGN_EXPORT __CGNThread *__cgn_get_thread_by_block(__CGNThreadBlock *block, uint32_t pos);
 __CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack);
 __CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
 
 #define async __attribute__((noinline))
 
 extern _Thread_local int __cgn_pagesize;
-extern _Thread_local __CGNThread *__cgn_curr_thread;
+extern _Thread_local __CGNThread *volatile __cgn_curr_thread;
 extern _Thread_local void *__cgn_sched_stack_alloc;
 
 #define async_run(Fn) ({                                        \
             void *stack;                                        \
             __CGNThread *t = __cgn_add_thread(&stack);          \
                                                                 \
+            atomic_signal_fence(memory_order_seq_cst);          \
             volatile _Bool loaded = __cgn_savenewctx(&t->ctx, stack); \
+            atomic_signal_fence(memory_order_seq_cst);          \
             if (loaded) {                                       \
-                t->return_val = (uint64_t) Fn;                  \
-                t->state = __CGN_THREAD_STATE_DONE;             \
-                __asm__ __volatile__("" ::: "memory");          \
+                __CGNThread *self = __cgn_curr_thread;          \
+                self->return_val = (uint64_t) (Fn);             \
+                self->state = __CGN_THREAD_STATE_DONE;          \
+                atomic_signal_fence(memory_order_seq_cst);      \
                 __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize); \
+                abort();                                        \
             }                                                   \
                                                                 \
             (CGNThreadHandle) t->id;                            \

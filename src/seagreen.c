@@ -7,7 +7,7 @@ _Thread_local int __cgn_pagesize = 0;
 
 _Thread_local __CGNThreadList __cgn_threadlist = {0};
 
-_Thread_local __CGNThread *__cgn_curr_thread = 0;
+_Thread_local __CGNThread *volatile __cgn_curr_thread = 0;
 _Thread_local __CGNThread *__cgn_main_thread = 0;
 _Thread_local void *__cgn_sched_stack_alloc = 0;
 
@@ -116,7 +116,7 @@ void print_threads(void) {
             printf("thread %u:\n\tstate: %s\n\tawaiting: %u\n\tawait count: "
                    "%u\n\tptr: %p\n\tstack ptr: %p\n\n",
                    id, state_to_name(thread->state), thread->awaited_thread_id,
-                   thread->awaiting_thread_count, thread, (void*)stack_ptr);
+                   thread->awaiting_thread_count, (void*)thread, (void*)stack_ptr);
 
             ++pos;
         }
@@ -140,8 +140,12 @@ static __CGNThreadBlock *add_block(void) {
 #define MAP_STACK 0
 #endif
 
+#ifndef MAP_GROWSDOWN
+#define MAP_GROWSDOWN 0
+#endif
+
     void *stacks =
-        mmap(0, alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK, -1, 0);
+        mmap(0, alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK | MAP_GROWSDOWN, -1, 0);
     __cgn_check_malloc(stacks);
 
     for (uint64_t i = 0; i < __CGN_THREAD_BLOCK_SIZE; ++i) {
@@ -221,8 +225,12 @@ __CGN_EXPORT void seagreen_init_rt(void) {
 #define MAP_STACK 0
 #endif
 
+#ifndef MAP_GROWSDOWN
+#define MAP_GROWSDOWN 0
+#endif
+
     void *sched_alloc =
-        mmap(0, sched_alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK, -1, 0);
+        mmap(0, sched_alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK | MAP_GROWSDOWN, -1, 0);
     __cgn_check_malloc(sched_alloc);
 
     // Put guard page at start; stack grows downward after it
@@ -295,14 +303,17 @@ __CGN_EXPORT void seagreen_free_rt(void) {
 }
 
 __CGN_EXPORT void async_yield(void) {
+    atomic_signal_fence(memory_order_seq_cst);
     volatile _Bool loaded = __cgn_savectx(&__cgn_curr_thread->ctx);
+    atomic_signal_fence(memory_order_seq_cst);
     if (!loaded) {
         if (__cgn_curr_thread->state == __CGN_THREAD_STATE_RUNNING) {
             __cgn_curr_thread->state = __CGN_THREAD_STATE_READY;
         }
 
-        __asm__ __volatile__("" ::: "memory");
+        atomic_signal_fence(memory_order_seq_cst);
         __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
+        abort();
     }
 }
 
@@ -321,15 +332,17 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
         /* won't be scheduled until awaited thread has */
         /* finished its execution */
 
+        atomic_signal_fence(memory_order_seq_cst);
         volatile _Bool loaded = __cgn_savectx(&__cgn_curr_thread->ctx);
+        atomic_signal_fence(memory_order_seq_cst);
         if (!loaded) {
             __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
-            
-            __asm__ __volatile__("" ::: "memory");
+
+            atomic_signal_fence(memory_order_seq_cst);
             __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
+            abort();
         }
 
-        __asm__ __volatile__("" ::: "memory");
         return_val = (uint64_t)t->return_val;
         if (!t->awaiting_thread_count) {
             __cgn_remove_thread(block, pos);
@@ -395,8 +408,9 @@ __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_scheduler(void) {
                 // access to scheduler
                 __cgn_scheduled_thread_pos = thread_index + 1;
 
-                __asm__ __volatile__("" ::: "memory");
+                atomic_signal_fence(memory_order_seq_cst);
                 __cgn_loadctx(&staged_thread->ctx);
+                abort();
             }
 
             __cgn_scheduled_thread_pos = 0;
@@ -468,7 +482,9 @@ __CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack) {
     ++block->used_thread_count;
 
     uint64_t stack_plus_guard_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
-    *stack = (char *)block->stacks + pos * (stack_plus_guard_size + SEAGREEN_MAX_STACK_SIZE);
+    // pos * stack_plus_guard_size gets us to the bottom of the downward-growing stack,
+    // + stack_plus_guard_size gets us to the top (where the stack actually begins)
+    *stack = (char *)block->stacks + pos * stack_plus_guard_size + stack_plus_guard_size;
 
     return t;
 }
