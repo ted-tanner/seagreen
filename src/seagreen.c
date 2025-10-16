@@ -247,6 +247,37 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     __cgn_sched_stack_alloc = sched_alloc;
 }
 
+__CGN_EXPORT __attribute__((noreturn)) void __cgn_thread_entry(void) {
+    __CGNThread *self = __cgn_curr_thread;
+    uint64_t rv = 0;
+    if (self && self->fn) {
+        rv = self->fn(self->arg);
+    }
+    self->return_val = rv;
+    self->state = __CGN_THREAD_STATE_DONE;
+    atomic_signal_fence(memory_order_seq_cst);
+    __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
+    __builtin_unreachable();
+}
+
+
+
+__CGN_EXPORT CGNThreadHandle async_run_fn(__CGNAsyncFn fn, void *arg) {
+    void *stack;
+    __CGNThread *t = __cgn_add_thread(&stack);
+    t->fn = fn;
+    t->arg = arg;
+    atomic_signal_fence(memory_order_seq_cst);
+    volatile _Bool loaded = __cgn_savenewctx(&t->ctx, stack);
+    atomic_signal_fence(memory_order_seq_cst);
+    if (loaded) {
+        atomic_signal_fence(memory_order_seq_cst);
+        __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
+        __builtin_unreachable();
+    }
+    return (CGNThreadHandle)t->id;
+}
+
 __CGN_EXPORT void seagreen_free_rt(void) {
     if (!__cgn_threadlist.head) {
         // No need to deinitialize if not already initialized
@@ -313,7 +344,7 @@ __CGN_EXPORT void async_yield(void) {
 
         atomic_signal_fence(memory_order_seq_cst);
         __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
-        abort();
+        __builtin_unreachable();
     }
 }
 
@@ -340,7 +371,7 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
 
             atomic_signal_fence(memory_order_seq_cst);
             __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
-            abort();
+            __builtin_unreachable();
         }
 
         return_val = (uint64_t)t->return_val;
@@ -410,7 +441,7 @@ __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_scheduler(void) {
 
                 atomic_signal_fence(memory_order_seq_cst);
                 __cgn_loadctx(&staged_thread->ctx);
-                abort();
+                __builtin_unreachable();
             }
 
             __cgn_scheduled_thread_pos = 0;

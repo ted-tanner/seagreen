@@ -134,6 +134,8 @@ typedef struct __CGNThreadCtx_ {
 
 #endif
 
+typedef uint64_t (*__CGNAsyncFn)(void *);
+
 typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
     __CGN_THREAD_STATE_READY,
     __CGN_THREAD_STATE_RUNNING,
@@ -141,7 +143,7 @@ typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
     __CGN_THREAD_STATE_DONE,
 } __CGNThreadState;
 
-#define __CGN_THREAD_BLOCK_SIZE 256
+#define __CGN_THREAD_BLOCK_SIZE 512
 #define __CGN_IN_USE_CHUNK_SIZE (sizeof(uint64_t) * 8)
 #define __CGN_THREAD_IN_USE_CHUNK_COUNT (__CGN_THREAD_BLOCK_SIZE / __CGN_IN_USE_CHUNK_SIZE)
 
@@ -150,6 +152,9 @@ typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
 typedef struct __CGNThread_ {
     __CGNThreadCtx ctx;
     uint64_t return_val;
+
+    __CGNAsyncFn fn;
+    void *arg;
 
     uint32_t id;
     uint32_t awaited_thread_id;
@@ -202,6 +207,8 @@ __CGN_EXPORT void async_yield(void);
 __CGN_EXPORT uint64_t await(CGNThreadHandle handle);
 
 __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_scheduler(void);
+__CGN_EXPORT __attribute__((noreturn)) void __cgn_thread_entry(void);
+__CGN_EXPORT CGNThreadHandle async_run_fn(__CGNAsyncFn fn, void *arg);
 
 __CGN_EXPORT __CGNThreadBlock *__cgn_get_block(uint32_t id);
 __CGN_EXPORT __CGNThread *__cgn_get_thread(uint32_t id);
@@ -227,7 +234,7 @@ extern _Thread_local void *__cgn_sched_stack_alloc;
                 self->state = __CGN_THREAD_STATE_DONE;          \
                 atomic_signal_fence(memory_order_seq_cst);      \
                 __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize); \
-                abort();                                        \
+                __builtin_unreachable();                        \
             }                                                   \
                                                                 \
             (CGNThreadHandle) t->id;                            \

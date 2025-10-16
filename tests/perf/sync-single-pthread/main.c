@@ -7,7 +7,7 @@
 #include <string.h>
 #include <time.h>
 
-#define FILE_COUNT 2048
+#define FILE_COUNT 8192
 
 #define LOREM_IPSUM_COUNT 10000
 

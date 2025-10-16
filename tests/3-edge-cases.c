@@ -1,11 +1,12 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
-
 #include "seagreen.h"
 
-async int foo() {
+async uint64_t foo(void *p) {
+    (void)p;
     __asm__ volatile("nop");
     async_yield();
     return 5;
@@ -16,9 +17,8 @@ int main(void) {
     seagreen_init_rt();
 
     printf("Starting foo()...\n");
-    CGNThreadHandle handle = async_run(foo());
+    CGNThreadHandle handle = async_run_fn(foo, 0);
 
-    // Awaiting multiple times doesn't cause issues
     printf("Awaiting...\n");
     await(handle);
     await(handle);

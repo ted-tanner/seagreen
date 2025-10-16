@@ -10,11 +10,15 @@
 
 #include "seagreen.h"
 
-#define FILE_COUNT 2048
+#define FILE_COUNT 8192
 
 #define LOREM_IPSUM_COUNT 10000
 
-async int write_file(struct aiocb *aio) {
+typedef struct { struct aiocb *aio; } write_file_args;
+async uint64_t write_file(void *p) {
+    write_file_args *args = (write_file_args *)p;
+    struct aiocb *aio = args->aio;
+    
     aio_write(aio);
 
     while (aio_error(aio) == EINPROGRESS) {
@@ -74,6 +78,8 @@ officia deserunt mollit anim id est laborum.";
 
     CGNThreadHandle *handles =
         (CGNThreadHandle *)malloc(FILE_COUNT * sizeof(CGNThreadHandle));
+    write_file_args *args_array =
+        (write_file_args *)malloc(FILE_COUNT * sizeof(write_file_args));
 
     printf("Initializing SeaGreen runtime...\n");
     seagreen_init_rt();
@@ -84,14 +90,15 @@ officia deserunt mollit anim id est laborum.";
     clock_gettime(CLOCK_REALTIME, &start);
 
     for (int i = 0; i < FILE_COUNT; ++i) {
-        handles[i] = async_run(write_file(&aio_list[i]));
+        args_array[i] = (write_file_args){&aio_list[i]};
+        handles[i] = async_run_fn(write_file, &args_array[i]);
     }
 
     for (int i = 0; i < FILE_COUNT; ++i) {
         int res = await(handles[i]);
 
         if (res == -1) {
-            perror("Error writing file");
+            perror("Error writing file. This may occur if aio limits are set too low.");
             exit(EXIT_FAILURE);
         }
     }
@@ -110,6 +117,7 @@ officia deserunt mollit anim id est laborum.";
 
     printf("Write took %lld.%lld seconds\n", sec_diff, nsec_diff / 1000000);
 
+    free(args_array);
     seagreen_free_rt();
 
     return 0;

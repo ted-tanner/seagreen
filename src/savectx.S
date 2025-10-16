@@ -35,7 +35,11 @@ __CGN_SAVENEWCTX_SYMBOL:
     leaq -8(%rcx), %rcx
     movq %rcx, 8(%rdi)
 
-    leaq 0f(%rip), %r8
+#if defined(__APPLE__)
+    leaq ___cgn_thread_entry(%rip), %r8
+#else
+    leaq __cgn_thread_entry(%rip), %r8
+#endif
     movq %r8, 16(%rdi)
     movq %r8, (%rcx)
 
@@ -89,7 +93,7 @@ __CGN_SAVENEWCTX_SYMBOL:
     leaq -8(%r9), %r9
     movq %r9, 8(%rdx)
 
-    leaq 0f(%rip), %r10
+    leaq __cgn_thread_entry(%rip), %r10
     movq %r10, 16(%rdx)
     movq %r10, (%r9)
 
@@ -114,9 +118,7 @@ __CGN_SAVENEWCTX_SYMBOL:
     movdqu %xmm6, 224(%rdx)
 
     movq $0, %rax
-
     stmxcsr 240(%rdx)
-
     ret
 
 #elif defined(__aarch64__)
@@ -148,14 +150,17 @@ __CGN_SAVECTX_SYMBOL:
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    stp lr, x1, [x0, 0]
+    adrp x9, ___cgn_thread_entry@PAGE
+    add  x9, x9, ___cgn_thread_entry@PAGEOFF
+    stp  x9, x1, [x0, 0]
 
     stp x19, x20, [x0, 16]
     stp x21, x22, [x0, 32]
     stp x23, x24, [x0, 48]
     stp x25, x26, [x0, 64]
     stp x27, x28, [x0, 80]
-    str x29, [x0, 96]
+    mov x9, xzr
+    str x9, [x0, 96]
 
     mrs x9, FPCR
     str w9, [x0, 104]
@@ -195,7 +200,8 @@ __CGN_SAVECTX_SYMBOL:
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    sd ra, 0(a0)
+    la t0, __cgn_thread_entry
+    sd t0, 0(a0)
     sd a2, 8(a0)
 
     sd s0, 16(a0)
