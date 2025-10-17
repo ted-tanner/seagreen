@@ -442,7 +442,7 @@ __CGN_EXPORT void seagreen_init_rt(void) {
 
     if (!__cgn_pagesize) {
 #if !defined(_WIN32)
-        __cgn_pagesize = getpagesize();
+        __cgn_pagesize = sysconf(_SC_PAGESIZE);
 #else
         SYSTEM_INFO sysinfo;
         GetSystemInfo(&sysinfo);
