@@ -150,9 +150,8 @@ typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
 // Careful alignment of these struct fields to avoid padding is important
 // for performance here.
 typedef struct __CGNThread_ {
-    __CGNThreadCtx ctx;
-    uint64_t return_val;
-
+    void *stack_ptr;
+    
     __CGNAsyncFn fn;
     void *arg;
 
@@ -182,10 +181,26 @@ typedef struct __CGNThreadList_ {
     uint32_t thread_count;
 } __CGNThreadList;
 
-extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThreadCtx *ctx);
-extern __CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_jumpwithstack(void *func_ptr, void *stack_ptr);
-extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savectx(volatile __CGNThreadCtx *ctx);
-extern __CGN_EXPORT __attribute__((noinline, returns_twice)) _Bool __cgn_savenewctx(volatile __CGNThreadCtx *ctx, void *stack);
+// Size of the saved context area placed below the saved stack pointer.
+#if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
+#define __CGN_CTX_SAVE_SIZE 56
+#elif defined(__x86_64__) && defined(_WIN64)
+// 80 bytes GPRs (rbp,rsp,rip,r12,r13,r14,r15,rbx,rdi,rsi)
+// + 160 bytes XMM6..XMM15
+// + 4 bytes mxcsr → 244; round up to 256 for alignment
+#define __CGN_CTX_SAVE_SIZE 256
+#elif defined(__aarch64__)
+#define __CGN_CTX_SAVE_SIZE 240
+#elif defined(__riscv__)
+#define __CGN_CTX_SAVE_SIZE 104
+#endif
+
+extern __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThread *thread);
+extern __attribute__((noinline, noreturn)) void __cgn_jumpwithstack(void *func_ptr, void *stack_ptr);
+extern __attribute__((noinline, returns_twice)) _Bool __cgn_savectx(void **stack_ptr_location);
+extern __attribute__((noinline, returns_twice)) _Bool __cgn_savenewctx(void **stack_ptr_location, void *stack);
+
+__attribute__((noreturn)) void __cgn_thread_entry(void);
 
 // mmap returns -1 on error, check ptr < 1 rather than !ptr
 #define __cgn_check_malloc(ptr)                         \
@@ -205,40 +220,13 @@ __CGN_EXPORT void seagreen_init_rt(void);
 __CGN_EXPORT void seagreen_free_rt(void);
 __CGN_EXPORT void async_yield(void);
 __CGN_EXPORT uint64_t await(CGNThreadHandle handle);
-
-__CGN_EXPORT __attribute__((noinline, noreturn)) void __cgn_scheduler(void);
-__CGN_EXPORT __attribute__((noreturn)) void __cgn_thread_entry(void);
-__CGN_EXPORT CGNThreadHandle async_run_fn(__CGNAsyncFn fn, void *arg);
-
-__CGN_EXPORT __CGNThreadBlock *__cgn_get_block(uint32_t id);
-__CGN_EXPORT __CGNThread *__cgn_get_thread(uint32_t id);
-__CGN_EXPORT __CGNThread *__cgn_add_thread(void **stack);
-__CGN_EXPORT void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos);
+__CGN_EXPORT CGNThreadHandle async_run(__CGNAsyncFn fn, void *arg);
 
 #define async __attribute__((noinline))
 
 extern _Thread_local int __cgn_pagesize;
 extern _Thread_local __CGNThread *volatile __cgn_curr_thread;
 extern _Thread_local void *__cgn_sched_stack_alloc;
-
-#define async_run(Fn) ({                                        \
-            void *stack;                                        \
-            __CGNThread *t = __cgn_add_thread(&stack);          \
-                                                                \
-            atomic_signal_fence(memory_order_seq_cst);          \
-            volatile _Bool loaded = __cgn_savenewctx(&t->ctx, stack); \
-            atomic_signal_fence(memory_order_seq_cst);          \
-            if (loaded) {                                       \
-                __CGNThread *self = __cgn_curr_thread;          \
-                self->return_val = (uint64_t) (Fn);             \
-                self->state = __CGN_THREAD_STATE_DONE;          \
-                atomic_signal_fence(memory_order_seq_cst);      \
-                __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize); \
-                __builtin_unreachable();                        \
-            }                                                   \
-                                                                \
-            (CGNThreadHandle) t->id;                            \
-        })
 
 #define SEAGREEN_H
 #endif

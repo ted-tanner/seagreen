@@ -13,41 +13,40 @@
 
 .balign 4
 __CGN_SAVECTX_SYMBOL:
-    movq %rbp, 0(%rdi)
-    movq %rsp, 8(%rdi)
-    movq (%rsp), %rax
-    movq %rax, 16(%rdi)
+    movq %rsp, 0(%rdi)
 
-    movq %r12, 24(%rdi)
-    movq %r13, 32(%rdi)
-    movq %r14, 40(%rdi)
-    movq %r15, 48(%rdi)
-    movq %rbx, 56(%rdi)
+    leaq -56(%rsp), %r8
+
+    movq 8(%rsp), %rax
+    movq %rbp, 0(%r8)
+    movq %rax, 8(%r8)
+    movq %r12, 16(%r8)
+    movq %r13, 24(%r8)
+    movq %r14, 32(%r8)
+    movq %r15, 40(%r8)
+    movq %rbx, 48(%r8)
 
     movq $0, %rax
     ret
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    movq $0, 0(%rdi)
+    movq %rsi, 0(%rdi)
 
-    movq %rsi, %rcx
-    leaq -8(%rcx), %rcx
-    movq %rcx, 8(%rdi)
+    leaq -56(%rsi), %r8
 
+    movq $0, 0(%r8)
 #if defined(__APPLE__)
-    leaq ___cgn_thread_entry(%rip), %r8
+    leaq ___cgn_thread_entry(%rip), %r9
 #else
-    leaq __cgn_thread_entry(%rip), %r8
+    leaq __cgn_thread_entry(%rip), %r9
 #endif
-    movq %r8, 16(%rdi)
-    movq %r8, (%rcx)
-
-    movq $0, 24(%rdi)
-    movq $0, 32(%rdi)
-    movq $0, 40(%rdi)
-    movq $0, 48(%rdi)
-    movq $0, 56(%rdi)
+    movq %r9, 8(%r8)
+    movq $0, 16(%r8)
+    movq $0, 24(%r8)
+    movq $0, 32(%r8)
+    movq $0, 40(%r8)
+    movq $0, 48(%r8)
 
     movq $0, %rax
     ret
@@ -56,69 +55,69 @@ __CGN_SAVENEWCTX_SYMBOL:
 
 .balign 4
 __CGN_SAVECTX_SYMBOL:
-    movq %rbp, 0(%rcx)
-    movq %rsp, 8(%rcx)
-    movq (%rsp), %rax
-    movq %rax, 16(%rcx)
+    movq %rsp, 0(%rcx)
 
-    movq %r12, 24(%rcx)
-    movq %r13, 32(%rcx)
-    movq %r14, 40(%rcx)
-    movq %r15, 48(%rcx)
-    movq %rbx, 56(%rcx)
-    movq %rdi, 64(%rcx)
-    movq %rsi, 72(%rcx)
+    leaq -256(%rsp), %r10
 
-    movdqu %xmm6, 80(%rcx)
-    movdqu %xmm7, 96(%rcx)
-    movdqu %xmm8, 112(%rcx)
-    movdqu %xmm9, 128(%rcx)
-    movdqu %xmm10, 144(%rcx)
-    movdqu %xmm11, 160(%rcx)
-    movdqu %xmm12, 176(%rcx)
-    movdqu %xmm13, 192(%rcx)
-    movdqu %xmm14, 208(%rcx)
-    movdqu %xmm15, 224(%rcx)
+    movq 8(%rsp), %rax
+    movq %rbp, 0(%r10)
+    movq %rax, 8(%r10)
+    movq %r12, 16(%r10)
+    movq %r13, 24(%r10)
+    movq %r14, 32(%r10)
+    movq %r15, 40(%r10)
+    movq %rbx, 48(%r10)
+    movq %rdi, 56(%r10)
+    movq %rsi, 64(%r10)
 
-    stmxcsr 240(%rcx)
+    movdqu %xmm6, 72(%r10)
+    movdqu %xmm7, 88(%r10)
+    movdqu %xmm8, 104(%r10)
+    movdqu %xmm9, 120(%r10)
+    movdqu %xmm10, 136(%r10)
+    movdqu %xmm11, 152(%r10)
+    movdqu %xmm12, 168(%r10)
+    movdqu %xmm13, 184(%r10)
+    movdqu %xmm14, 200(%r10)
+    movdqu %xmm15, 216(%r10)
+
+    stmxcsr 232(%r10)
 
     movq $0, %rax
     ret
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    movq $0, 0(%rdx)
+    // RCX = thread*, RDX = stack
+    movq %rdx, 0(%rcx)
 
-    movq %r8, %r9
-    leaq -8(%r9), %r9
-    movq %r9, 8(%rdx)
+    leaq -256(%rdx), %r10
 
-    leaq __cgn_thread_entry(%rip), %r10
-    movq %r10, 16(%rdx)
-    movq %r10, (%r9)
-
-    movq $0, 24(%rdx)
-    movq $0, 32(%rdx)
-    movq $0, 40(%rdx)
-    movq $0, 48(%rdx)
-    movq $0, 56(%rdx)
-    movq $0, 64(%rdx)
-    movq $0, 72(%rdx)
+    movq $0, 0(%r10)
+    leaq __cgn_thread_entry(%rip), %r11
+    movq %r11, 8(%r10)
+    movq $0, 16(%r10)
+    movq $0, 24(%r10)
+    movq $0, 32(%r10)
+    movq $0, 40(%r10)
+    movq $0, 48(%r10)
+    movq $0, 56(%r10)
+    movq $0, 64(%r10)
 
     pxor %xmm6, %xmm6
-    movdqu %xmm6, 80(%rdx)
-    movdqu %xmm6, 96(%rdx)
-    movdqu %xmm6, 112(%rdx)
-    movdqu %xmm6, 128(%rdx)
-    movdqu %xmm6, 144(%rdx)
-    movdqu %xmm6, 160(%rdx)
-    movdqu %xmm6, 176(%rdx)
-    movdqu %xmm6, 192(%rdx)
-    movdqu %xmm6, 208(%rdx)
-    movdqu %xmm6, 224(%rdx)
+    movdqu %xmm6, 72(%r10)
+    movdqu %xmm6, 88(%r10)
+    movdqu %xmm6, 104(%r10)
+    movdqu %xmm6, 120(%r10)
+    movdqu %xmm6, 136(%r10)
+    movdqu %xmm6, 152(%r10)
+    movdqu %xmm6, 168(%r10)
+    movdqu %xmm6, 184(%r10)
+    movdqu %xmm6, 200(%r10)
+    movdqu %xmm6, 216(%r10)
 
     movq $0, %rax
-    stmxcsr 240(%rdx)
+    stmxcsr 232(%r10)
     ret
 
 #elif defined(__aarch64__)
@@ -126,51 +125,55 @@ __CGN_SAVENEWCTX_SYMBOL:
 .balign 4
 __CGN_SAVECTX_SYMBOL:
     mov x9, sp
-    stp lr, x9, [x0, 0]
+    str x9, [x0, 0]
 
-    stp x19, x20, [x0, 16]
-    stp x21, x22, [x0, 32]
-    stp x23, x24, [x0, 48]
-    stp x25, x26, [x0, 64]
-    stp x27, x28, [x0, 80]
-    str x29, [x0, 96]
+    sub x9, sp, #240
 
-    mrs x9, FPCR
-    str w9, [x0, 104]
-    mrs x9, FPSR
-    str w9, [x0, 108]
+    stp lr, x19, [x9, 0]
+    stp x20, x21, [x9, 16]
+    stp x22, x23, [x9, 32]
+    stp x24, x25, [x9, 48]
+    stp x26, x27, [x9, 64]
+    stp x28, x29, [x9, 80]
 
-    stp q8, q9, [x0, 112]
-    stp q10, q11, [x0, 144]
-    stp q12, q13, [x0, 176]
-    stp q14, q15, [x0, 208]
+    mrs x10, FPCR
+    str w10, [x9, 96]
+    mrs x10, FPSR
+    str w10, [x9, 100]
+
+    stp q8, q9, [x9, 112]
+    stp q10, q11, [x9, 144]
+    stp q12, q13, [x9, 176]
+    stp q14, q15, [x9, 208]
 
     mov w0, #0
     ret
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    adrp x9, ___cgn_thread_entry@PAGE
-    add  x9, x9, ___cgn_thread_entry@PAGEOFF
-    stp  x9, x1, [x0, 0]
+    str x1, [x0, 0]
 
-    stp x19, x20, [x0, 16]
-    stp x21, x22, [x0, 32]
-    stp x23, x24, [x0, 48]
-    stp x25, x26, [x0, 64]
-    stp x27, x28, [x0, 80]
-    mov x9, xzr
-    str x9, [x0, 96]
+    sub x9, x1, #240
 
-    mrs x9, FPCR
-    str w9, [x0, 104]
-    mrs x9, FPSR
-    str w9, [x0, 108]
+    adrp x10, ___cgn_thread_entry@PAGE
+    add  x10, x10, ___cgn_thread_entry@PAGEOFF
+    stp  x10, xzr, [x9, 0]
+    stp x19, x20, [x9, 16]
+    stp x21, x22, [x9, 32]
+    stp x23, x24, [x9, 48]
+    stp x25, x26, [x9, 64]
+    stp x27, x28, [x9, 80]
+    str xzr, [x9, 96]
 
-    stp q8, q9, [x0, 112]
-    stp q10, q11, [x0, 144]
-    stp q12, q13, [x0, 176]
-    stp q14, q15, [x0, 208]
+    mrs x10, FPCR
+    str w10, [x9, 100]
+    mrs x10, FPSR
+    str w10, [x9, 104]
+
+    stp q8, q9, [x9, 112]
+    stp q10, q11, [x9, 144]
+    stp q12, q13, [x9, 176]
+    stp q14, q15, [x9, 208]
 
     mov w0, #0
     ret
@@ -179,43 +182,46 @@ __CGN_SAVENEWCTX_SYMBOL:
 
 .balign 4
 __CGN_SAVECTX_SYMBOL:
-    sd ra, 0(a0)
-    sd sp, 8(a0)
+    sd sp, 0(a0)
+    addi t0, sp, -104
 
-    sd s0, 16(a0)
-    sd s1, 24(a0)
-    sd s2, 32(a0)
-    sd s3, 40(a0)
-    sd s4, 48(a0)
-    sd s5, 56(a0)
-    sd s6, 64(a0)
-    sd s7, 72(a0)
-    sd s8, 80(a0)
-    sd s9, 88(a0)
-    sd s10, 96(a0)
-    sd s11, 104(a0)
+    sd ra, 0(t0)
+    sd s0, 8(t0)
+    sd s1, 16(t0)
+    sd s2, 24(t0)
+    sd s3, 32(t0)
+    sd s4, 40(t0)
+    sd s5, 48(t0)
+    sd s6, 56(t0)
+    sd s7, 64(t0)
+    sd s8, 72(t0)
+    sd s9, 80(t0)
+    sd s10, 88(t0)
+    sd s11, 96(t0)
 
     li a0, 0
     ret
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    la t0, __cgn_thread_entry
-    sd t0, 0(a0)
-    sd a2, 8(a0)
+    sd a1, 0(a0)
 
-    sd s0, 16(a0)
-    sd s1, 24(a0)
-    sd s2, 32(a0)
-    sd s3, 40(a0)
-    sd s4, 48(a0)
-    sd s5, 56(a0)
-    sd s6, 64(a0)
-    sd s7, 72(a0)
-    sd s8, 80(a0)
-    sd s9, 88(a0)
-    sd s10, 96(a0)
-    sd s11, 104(a0)
+    addi t0, a1, -104
+
+    la t1, __cgn_thread_entry
+    sd t1, 0(t0)
+    sd s0, 8(t0)
+    sd s1, 16(t0)
+    sd s2, 24(t0)
+    sd s3, 32(t0)
+    sd s4, 40(t0)
+    sd s5, 48(t0)
+    sd s6, 56(t0)
+    sd s7, 64(t0)
+    sd s8, 72(t0)
+    sd s9, 80(t0)
+    sd s10, 88(t0)
+    sd s11, 96(t0)
 
     li a0, 0
     ret

@@ -43,7 +43,7 @@ int main(void) {
     foo_args args_array[THREAD_COUNT];
     for (int i = 0; i < THREAD_COUNT; ++i) {
         args_array[i] = (foo_args){i};
-        handles[i] = async_run_fn(foo, &args_array[i]);
+        handles[i] = async_run(foo, &args_array[i]);
     }
 
     printf("Awaiting...\n");

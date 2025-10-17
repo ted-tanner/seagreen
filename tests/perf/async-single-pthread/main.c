@@ -91,7 +91,7 @@ officia deserunt mollit anim id est laborum.";
 
     for (int i = 0; i < FILE_COUNT; ++i) {
         args_array[i] = (write_file_args){&aio_list[i]};
-        handles[i] = async_run_fn(write_file, &args_array[i]);
+        handles[i] = async_run(write_file, &args_array[i]);
     }
 
     for (int i = 0; i < FILE_COUNT; ++i) {

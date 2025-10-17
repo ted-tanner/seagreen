@@ -67,11 +67,11 @@ int main(void) {
 
     printf("Starting foo()...\n");
     foo_args fa = {1, 2, 0};
-    CGNThreadHandle t1 = async_run_fn(foo, &fa);
+    CGNThreadHandle t1 = async_run(foo, &fa);
 
     printf("Starting bar()...\n");
     bar_args ba = {3, 1};
-    CGNThreadHandle t2 = async_run_fn(bar, &ba);
+    CGNThreadHandle t2 = async_run(bar, &ba);
 
     printf("Awaiting...\n");
     int foo_res = await(t1);
@@ -89,10 +89,10 @@ int main(void) {
     for (int i = 0; i < 8; ++i) {
         if (i % 2 == 0) {
             foo_args_array[i/2] = (foo_args){1, 2, i};
-            handles[i] = async_run_fn(foo, &foo_args_array[i/2]);
+            handles[i] = async_run(foo, &foo_args_array[i/2]);
         } else {
             bar_args_array[i/2] = (bar_args){3, i};
-            handles[i] = async_run_fn(bar, &bar_args_array[i/2]);
+            handles[i] = async_run(bar, &bar_args_array[i/2]);
         }
     }
 
@@ -104,8 +104,8 @@ int main(void) {
         assert(running_func_is_bar[i] == (i % 2));
     }
 
-    async_run_fn(increment_counter, 0);
-    async_run_fn(increment_counter, 0);
+    async_run(increment_counter, 0);
+    async_run(increment_counter, 0);
     assert(counter == 0);
 
     seagreen_free_rt();

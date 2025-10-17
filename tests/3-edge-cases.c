@@ -17,7 +17,7 @@ int main(void) {
     seagreen_init_rt();
 
     printf("Starting foo()...\n");
-    CGNThreadHandle handle = async_run_fn(foo, 0);
+    CGNThreadHandle handle = async_run(foo, 0);
 
     printf("Awaiting...\n");
     await(handle);
