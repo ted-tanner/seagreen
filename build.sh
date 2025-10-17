@@ -34,7 +34,7 @@ TEST_SRC_DIR=./tests
 
 SRC_FILES=$(echo $(find $SRC_DIR -type f -name "*.c") $(find src -type f -name "*.S"))
 
-TEST_SRC_FILES=$(echo $(find $TEST_SRC_DIR -maxdepth 1 -type f -name "*.c" -print0 | sort -z | xargs -0))
+TEST_SRC_FILES=$(echo $(find $TEST_SRC_DIR -maxdepth 1 -type f -name "*.c" -print0 | sort -z -V | xargs -0))
 
 if [[ !($1 = "clean" || $1 = "test" || $1 = "release" || $1 = "") ]]; then
     echo "Usage: ./$(basename $0) <clean|test|test release|release>"
