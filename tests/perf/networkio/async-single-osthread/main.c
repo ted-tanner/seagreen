@@ -136,7 +136,7 @@ async uint64_t make_http_request_async(void *p) {
     response[total_received] = '\0';
     close(sockfd);
     
-    printf("Completed request %d\n", request_id);
+    printf("Received response for request %d (%zu bytes)\n", request_id, total_received);
     return 0;
 }
 
