@@ -7,7 +7,7 @@ fi
 IS_RELEASE=false
 
 if [[ $OPT_LEVEL = "" ]]; then
-    if [[ $1 = "release" ]]; then
+    if [[ $2 = "release" ]]; then
         OPT_LEVEL=O3
     else
         OPT_LEVEL=O1
@@ -15,7 +15,7 @@ if [[ $OPT_LEVEL = "" ]]; then
 fi
 
 if [[ $CC_FLAGS = "" ]]; then
-    if [[ $1 = "release" ]]; then
+    if [[ $2 = "release" ]]; then
         CC_FLAGS="-Wall -Wextra -std=c11 -DNDEBUG"
     else
         CC_FLAGS="-Wall -Wextra -std=c11 -g"
@@ -23,12 +23,12 @@ if [[ $CC_FLAGS = "" ]]; then
 fi
 
 TARGET_DIR=./target
-OUT_FILE=$TARGET_DIR/sync-single-pthread.out
+OUT_FILE=$TARGET_DIR/sync-single-osthread.out
 
 OUTPUT_FILE_DIR=./out
 mkdir -p $OUTPUT_FILE_DIR
 
-INCLUDE_DIR=../../../include
+INCLUDE_DIR=../../../../include
 SRC_FILES="main.c"
 
 if [[ !($1 = "clean" || $1 = "run" || $1 = "release" || $1 = "") ]]; then

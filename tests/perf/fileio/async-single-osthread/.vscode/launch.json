@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "async-single-pthread Debug",
+            "name": "async-single-osthread Debug",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/async-single-pthread.out",
+            "program": "${workspaceFolder}/target/async-single-osthread.out",
             "cwd": "${workspaceFolder}"
         }
     ]
