@@ -1,7 +1,5 @@
 #include "seagreen.h"
-#include <_abort.h>
-#include <stdint.h>
-#include <stdio.h>
+
 
 _Thread_local int __cgn_pagesize = 0;
 
@@ -148,16 +146,6 @@ static __CGNThreadBlock *add_block(void) {
     // Map stack + guard page together to assure that the guard page can be mapped
     // at the end of the stack. Will change PROT_NONE to PROT_READ | PROT_WRITE
     // with mprotect().
-
-    // MAP_STACK doesn't exist on macOS
-#ifndef MAP_STACK
-#define MAP_STACK 0
-#endif
-
-#ifndef MAP_GROWSDOWN
-#define MAP_GROWSDOWN 0
-#endif
-
     void *stacks =
         mmap(0, alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK | MAP_GROWSDOWN, -1, 0);
     __cgn_check_malloc(stacks);
@@ -481,15 +469,6 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     uint64_t sched_alloc_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
 
 #if !defined(_WIN32)
-    // MAP_STACK doesn't exist on macOS
-#ifndef MAP_STACK
-#define MAP_STACK 0
-#endif
-
-#ifndef MAP_GROWSDOWN
-#define MAP_GROWSDOWN 0
-#endif
-
     void *sched_alloc =
         mmap(0, sched_alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK | MAP_GROWSDOWN, -1, 0);
     __cgn_check_malloc(sched_alloc);

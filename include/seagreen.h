@@ -25,7 +25,26 @@
 #include <unistd.h>
 #endif
 
-#include "seagreen_ctx.h"
+#if defined(__APPLE__)
+#include <_abort.h>
+#endif
+
+// These mmap flags don't exist universally
+#if defined(__unix__) || defined(__APPLE__)
+#ifndef MAP_STACK
+#define MAP_STACK 0
+#endif
+
+#ifndef MAP_GROWSDOWN
+#define MAP_GROWSDOWN 0
+#endif
+
+#ifndef MAP_ANON
+#define MAP_ANON 0
+#endif
+#endif // defined(__unix__) || defined(__APPLE__)
+
+#include "_seagreen_ctx.h"
 
 #ifdef CGN_DEBUG
 void print_threads(void);

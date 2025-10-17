@@ -6,7 +6,7 @@
 #define __CGN_SAVENEWCTX_SYMBOL __cgn_savenewctx
 #endif
 
-#include "../include/seagreen_ctx.h"
+#include "../include/_seagreen_ctx.h"
 
 .globl __CGN_SAVECTX_SYMBOL
 .globl __CGN_SAVENEWCTX_SYMBOL

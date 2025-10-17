@@ -6,7 +6,7 @@
 #define __CGN_JUMPWITHSTACK_SYMBOL __cgn_jumpwithstack
 #endif
 
-#include "../include/seagreen_ctx.h"
+#include "../include/_seagreen_ctx.h"
 
 .globl __CGN_LOADCTX_SYMBOL
 .globl __CGN_JUMPWITHSTACK_SYMBOL
