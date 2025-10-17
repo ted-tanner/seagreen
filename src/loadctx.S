@@ -6,6 +6,8 @@
 #define __CGN_JUMPWITHSTACK_SYMBOL __cgn_jumpwithstack
 #endif
 
+#include "../include/seagreen_ctx.h"
+
 .globl __CGN_LOADCTX_SYMBOL
 .globl __CGN_JUMPWITHSTACK_SYMBOL
 
@@ -15,7 +17,7 @@
 __CGN_LOADCTX_SYMBOL:
     movq 0(%rdi), %rsp
 
-    leaq -56(%rsp), %r10
+    leaq -__CGN_CTX_SAVE_SIZE(%rsp), %r10
 
     movq 0(%r10), %rbp
     movq 8(%r10), %r11
@@ -42,7 +44,7 @@ __CGN_LOADCTX_SYMBOL_ret_stub:
 __CGN_LOADCTX_SYMBOL:
     movq 0(%rcx), %rsp
 
-    leaq -256(%rsp), %r10
+    leaq -__CGN_CTX_SAVE_SIZE(%rsp), %r10
 
     movq 0(%r10), %rbp
     movq 8(%r10), %r11
@@ -82,7 +84,7 @@ __CGN_LOADCTX_SYMBOL:
     ldr x9, [x0, 0]
     mov sp, x9
 
-    sub x9, sp, #240
+    sub x9, sp, #__CGN_CTX_SAVE_SIZE
 
     ldp lr, x19, [x9, 0]
     ldp x20, x21, [x9, 16]
@@ -115,7 +117,7 @@ __CGN_JUMPWITHSTACK_SYMBOL:
 __CGN_LOADCTX_SYMBOL:
     ld sp, 0(a0)
 
-    addi t0, sp, -104
+    addi t0, sp, -__CGN_CTX_SAVE_SIZE
 
     ld ra, 0(t0)
     ld s0, 8(t0)

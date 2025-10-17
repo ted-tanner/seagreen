@@ -25,6 +25,8 @@
 #include <unistd.h>
 #endif
 
+#include "seagreen_ctx.h"
+
 #ifdef CGN_DEBUG
 void print_threads(void);
 #endif
@@ -134,8 +136,6 @@ typedef struct __CGNThreadCtx_ {
 
 #endif
 
-typedef uint64_t (*__CGNAsyncFn)(void *);
-
 typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
     __CGN_THREAD_STATE_READY,
     __CGN_THREAD_STATE_RUNNING,
@@ -146,6 +146,8 @@ typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
 #define __CGN_THREAD_BLOCK_SIZE 512
 #define __CGN_IN_USE_CHUNK_SIZE (sizeof(uint64_t) * 8)
 #define __CGN_THREAD_IN_USE_CHUNK_COUNT (__CGN_THREAD_BLOCK_SIZE / __CGN_IN_USE_CHUNK_SIZE)
+
+typedef uint64_t (*__CGNAsyncFn)(void *);
 
 // Careful alignment of these struct fields to avoid padding is important
 // for performance here.
@@ -180,20 +182,6 @@ typedef struct __CGNThreadList_ {
     uint32_t block_count;
     uint32_t thread_count;
 } __CGNThreadList;
-
-// Size of the saved context area placed below the saved stack pointer.
-#if defined(__x86_64__) && (defined(__unix__) || defined(__APPLE__))
-#define __CGN_CTX_SAVE_SIZE 56
-#elif defined(__x86_64__) && defined(_WIN64)
-// 80 bytes GPRs (rbp,rsp,rip,r12,r13,r14,r15,rbx,rdi,rsi)
-// + 160 bytes XMM6..XMM15
-// + 4 bytes mxcsr → 244; round up to 256 for alignment
-#define __CGN_CTX_SAVE_SIZE 256
-#elif defined(__aarch64__)
-#define __CGN_CTX_SAVE_SIZE 240
-#elif defined(__riscv__)
-#define __CGN_CTX_SAVE_SIZE 104
-#endif
 
 extern __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThread *thread);
 extern __attribute__((noinline, noreturn)) void __cgn_jumpwithstack(void *func_ptr, void *stack_ptr);

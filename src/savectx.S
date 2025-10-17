@@ -6,6 +6,8 @@
 #define __CGN_SAVENEWCTX_SYMBOL __cgn_savenewctx
 #endif
 
+#include "../include/seagreen_ctx.h"
+
 .globl __CGN_SAVECTX_SYMBOL
 .globl __CGN_SAVENEWCTX_SYMBOL
 
@@ -15,7 +17,7 @@
 __CGN_SAVECTX_SYMBOL:
     movq %rsp, 0(%rdi)
 
-    leaq -56(%rsp), %r8
+    leaq -__CGN_CTX_SAVE_SIZE(%rsp), %r8
 
     movq 8(%rsp), %rax
     movq %rbp, 0(%r8)
@@ -33,7 +35,7 @@ __CGN_SAVECTX_SYMBOL:
 __CGN_SAVENEWCTX_SYMBOL:
     movq %rsi, 0(%rdi)
 
-    leaq -56(%rsi), %r8
+    leaq -__CGN_CTX_SAVE_SIZE(%rsi), %r8
 
     movq $0, 0(%r8)
 #if defined(__APPLE__)
@@ -57,7 +59,7 @@ __CGN_SAVENEWCTX_SYMBOL:
 __CGN_SAVECTX_SYMBOL:
     movq %rsp, 0(%rcx)
 
-    leaq -256(%rsp), %r10
+    leaq -__CGN_CTX_SAVE_SIZE(%rsp), %r10
 
     movq 8(%rsp), %rax
     movq %rbp, 0(%r10)
@@ -91,7 +93,7 @@ __CGN_SAVENEWCTX_SYMBOL:
     // RCX = thread*, RDX = stack
     movq %rdx, 0(%rcx)
 
-    leaq -256(%rdx), %r10
+    leaq -__CGN_CTX_SAVE_SIZE(%rdx), %r10
 
     movq $0, 0(%r10)
     leaq __cgn_thread_entry(%rip), %r11
@@ -127,7 +129,7 @@ __CGN_SAVECTX_SYMBOL:
     mov x9, sp
     str x9, [x0, 0]
 
-    sub x9, sp, #240
+    sub x9, sp, #__CGN_CTX_SAVE_SIZE
 
     stp lr, x19, [x9, 0]
     stp x20, x21, [x9, 16]
@@ -153,7 +155,7 @@ __CGN_SAVECTX_SYMBOL:
 __CGN_SAVENEWCTX_SYMBOL:
     str x1, [x0, 0]
 
-    sub x9, x1, #240
+    sub x9, x1, #__CGN_CTX_SAVE_SIZE
 
     adrp x10, ___cgn_thread_entry@PAGE
     add  x10, x10, ___cgn_thread_entry@PAGEOFF
@@ -183,7 +185,7 @@ __CGN_SAVENEWCTX_SYMBOL:
 .balign 4
 __CGN_SAVECTX_SYMBOL:
     sd sp, 0(a0)
-    addi t0, sp, -104
+    addi t0, sp, -__CGN_CTX_SAVE_SIZE
 
     sd ra, 0(t0)
     sd s0, 8(t0)
@@ -206,7 +208,7 @@ __CGN_SAVECTX_SYMBOL:
 __CGN_SAVENEWCTX_SYMBOL:
     sd a1, 0(a0)
 
-    addi t0, a1, -104
+    addi t0, a1, -__CGN_CTX_SAVE_SIZE
 
     la t1, __cgn_thread_entry
     sd t1, 0(t0)
