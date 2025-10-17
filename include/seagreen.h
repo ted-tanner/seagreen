@@ -146,6 +146,7 @@ typedef enum __attribute__ ((__packed__)) __CGNThreadState_ {
 #define __CGN_THREAD_BLOCK_SIZE 512
 #define __CGN_IN_USE_CHUNK_SIZE (sizeof(uint64_t) * 8)
 #define __CGN_THREAD_IN_USE_CHUNK_COUNT (__CGN_THREAD_BLOCK_SIZE / __CGN_IN_USE_CHUNK_SIZE)
+#define __CGN_STARVATION_CHECK_INTERVAL 8
 
 typedef uint64_t (*__CGNAsyncFn)(void *);
 
@@ -162,6 +163,10 @@ typedef struct __CGNThread_ {
     uint32_t awaiting_thread_count;
 
     __CGNThreadState state;
+    
+    // Ready queue links
+    struct __CGNThread_ *ready_next;
+    struct __CGNThread_ *ready_prev;
 } __CGNThread;
 
 typedef struct __CGNThreadBlock_ {
@@ -182,6 +187,12 @@ typedef struct __CGNThreadList_ {
     uint32_t block_count;
     uint32_t thread_count;
 } __CGNThreadList;
+
+typedef struct __CGNReadyQueue_ {
+    __CGNThread *head;
+    __CGNThread *tail;
+    uint32_t count;
+} __CGNReadyQueue;
 
 extern __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThread *thread);
 extern __attribute__((noinline, noreturn)) void __cgn_jumpwithstack(void *func_ptr, void *stack_ptr);

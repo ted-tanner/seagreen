@@ -6,14 +6,15 @@
 _Thread_local int __cgn_pagesize = 0;
 
 _Thread_local __CGNThreadList __cgn_threadlist = {0};
+_Thread_local __CGNReadyQueue __cgn_ready_queue = {0};
 
 _Thread_local __CGNThread *volatile __cgn_curr_thread = 0;
 _Thread_local __CGNThread *__cgn_main_thread = 0;
 _Thread_local void *__cgn_sched_stack_alloc = 0;
 
 _Thread_local __CGNThreadBlock *__cgn_scheduled_block = 0;
-_Thread_local uint32_t __cgn_scheduled_block_pos = 0;
 _Thread_local uint32_t __cgn_scheduled_thread_pos = 0;
+_Thread_local uint64_t __cgn_scheduler_call_count = 0;
 
 #ifdef CGN_DEBUG
 #define CGN_DBG(...) printf(__VA_ARGS__)
@@ -71,6 +72,72 @@ static inline int64_t __cgn_block_next_in_use(const __CGNThreadBlock *block, uin
     }
 
     return -1;
+}
+
+// Ready queue operations
+static inline void __cgn_ready_queue_enqueue(__CGNThread *thread) {
+    if (thread->ready_next || thread->ready_prev) {
+        // Thread already in queue
+        return;
+    }
+    
+    if (!__cgn_ready_queue.head) {
+        __cgn_ready_queue.head = thread;
+        __cgn_ready_queue.tail = thread;
+        thread->ready_next = thread;
+        thread->ready_prev = thread;
+    } else {
+        thread->ready_next = __cgn_ready_queue.head;
+        thread->ready_prev = __cgn_ready_queue.tail;
+        __cgn_ready_queue.tail->ready_next = thread;
+        __cgn_ready_queue.head->ready_prev = thread;
+        __cgn_ready_queue.tail = thread;
+    }
+    __cgn_ready_queue.count++;
+}
+
+static inline __CGNThread *__cgn_ready_queue_dequeue(void) {
+    if (!__cgn_ready_queue.head) {
+        return NULL;
+    }
+    
+    __CGNThread *thread = __cgn_ready_queue.head;
+    
+    if (__cgn_ready_queue.head == __cgn_ready_queue.tail) {
+        __cgn_ready_queue.head = NULL;
+        __cgn_ready_queue.tail = NULL;
+    } else {
+        __cgn_ready_queue.head = thread->ready_next;
+        __cgn_ready_queue.head->ready_prev = __cgn_ready_queue.tail;
+        __cgn_ready_queue.tail->ready_next = __cgn_ready_queue.head;
+    }
+    
+    thread->ready_next = NULL;
+    thread->ready_prev = NULL;
+    __cgn_ready_queue.count--;
+    
+    return thread;
+}
+
+static inline void __cgn_ready_queue_remove(__CGNThread *thread) {
+    if (!thread->ready_next || !thread->ready_prev) {
+        // Thread not in queue
+        return;
+    }
+    
+    if (thread == __cgn_ready_queue.head) {
+        __cgn_ready_queue.head = thread->ready_next;
+    }
+    if (thread == __cgn_ready_queue.tail) {
+        __cgn_ready_queue.tail = thread->ready_prev;
+    }
+    
+    thread->ready_prev->ready_next = thread->ready_next;
+    thread->ready_next->ready_prev = thread->ready_prev;
+    
+    thread->ready_next = NULL;
+    thread->ready_prev = NULL;
+    __cgn_ready_queue.count--;
 }
 
 static __CGNThreadBlock *add_block(void) {
@@ -155,73 +222,86 @@ static inline __CGNThread *__cgn_get_thread(uint32_t id) {
 }
 
 static __attribute__((noinline, noreturn)) void __cgn_scheduler(void) {
-    while (1) {
-        for (; __cgn_scheduled_block; __cgn_scheduled_block = __cgn_scheduled_block->next, ++__cgn_scheduled_block_pos) {
-            if (!__cgn_scheduled_block->used_thread_count) {
-                __cgn_scheduled_thread_pos = 0;
-                continue;
-            }
-
-            size_t search_pos = __cgn_scheduled_thread_pos;
-
-            while (1) {
-                int64_t next_in_use = __cgn_block_next_in_use(__cgn_scheduled_block, search_pos);
-                if (next_in_use < 0) {
-                    break;
-                }
-
-                size_t thread_index = (size_t)next_in_use;
-                __CGNThread *staged_thread = &__cgn_scheduled_block->threads[thread_index];
-
-                if (staged_thread->state == __CGN_THREAD_STATE_WAITING) {
-                    __CGNThread *awaited_thread =
-                        __cgn_get_thread(staged_thread->awaited_thread_id);
-                    if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
-                        awaited_thread->awaiting_thread_count--;
-                        staged_thread->state = __CGN_THREAD_STATE_READY;
-                        staged_thread->awaited_thread_id = 0;
-                    } else {
-                        search_pos = thread_index + 1;
-                        continue;
-                    }
-                }
-
-                // Including RUNNING here allows a thread to run when it is the only
-                // thread that isn't WAITING. This will only happen if the scheduler has
-                // checked every other thread and found them to be WAITING.
-                _Bool runnable = staged_thread->state == __CGN_THREAD_STATE_READY ||
-                    staged_thread->state == __CGN_THREAD_STATE_RUNNING;
-
-                if (!runnable) {
-                    search_pos = thread_index + 1;
-                    continue;
-                }
-
-                __CGNThread *running_thread = __cgn_curr_thread;
-                __cgn_curr_thread = staged_thread;
-
-                if (running_thread->state == __CGN_THREAD_STATE_RUNNING) {
-                    running_thread->state = __CGN_THREAD_STATE_READY;
-                }
-
-                staged_thread->state = __CGN_THREAD_STATE_RUNNING;
-
-                // Won't loop after loading new ctx; increment thread position for next
-                // access to scheduler
-                __cgn_scheduled_thread_pos = thread_index + 1;
-
-                atomic_signal_fence(memory_order_seq_cst);
-                __cgn_loadctx(staged_thread);
-                __builtin_unreachable();
-            }
-
-            __cgn_scheduled_thread_pos = 0;
+    __cgn_scheduler_call_count++;
+    
+    // Check for waiting threads first if it's time for starvation prevention
+    _Bool should_check_waiting = (__cgn_scheduler_call_count % __CGN_STARVATION_CHECK_INTERVAL == 0) ||
+                                    !__cgn_ready_queue.count;
+    
+    if (should_check_waiting) {
+        // Resume from where we left off in the previous scan
+        __CGNThreadBlock *block = __cgn_scheduled_block;
+        uint32_t pos = __cgn_scheduled_thread_pos;
+        
+        // If we don't have a current block, start from the beginning
+        if (!block) {
+            block = __cgn_threadlist.head;
+            pos = 0;
         }
 
+        // Scan through blocks and threads, checking waiting threads
+        while (block) {
+            if (block->used_thread_count) {
+                while (pos < __CGN_THREAD_BLOCK_SIZE) {
+                    int64_t next_in_use = __cgn_block_next_in_use(block, pos);
+                    if (next_in_use < 0) {
+                        break;
+                    }
+
+                    size_t thread_index = (size_t)next_in_use;
+                    __CGNThread *thread = &block->threads[thread_index];
+
+                    if (thread->state == __CGN_THREAD_STATE_WAITING) {
+                        __CGNThread *awaited_thread = __cgn_get_thread(thread->awaited_thread_id);
+                        if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
+                            awaited_thread->awaiting_thread_count--;
+                            thread->state = __CGN_THREAD_STATE_READY;
+                            thread->awaited_thread_id = 0;
+                            __cgn_ready_queue_enqueue(thread);
+                            
+                            // Found a thread to make ready
+                            goto break_from_outer_waiting_scan_loop;
+                        }
+                    }
+
+                    pos = thread_index + 1;
+                }
+            }
+
+            // Move to next block
+            block = block->next;
+            pos = 0;
+        }
+    break_from_outer_waiting_scan_loop:
+        
+        // Reset scan position for next time
         __cgn_scheduled_block = __cgn_threadlist.head;
-        __cgn_scheduled_block_pos = 0;
         __cgn_scheduled_thread_pos = 0;
     }
+
+    // Fast path: try to get a ready thread from the queue
+    __CGNThread *staged_thread = __cgn_ready_queue_dequeue();
+    if (staged_thread) {
+        if (staged_thread->state == __CGN_THREAD_STATE_READY || 
+            staged_thread->state == __CGN_THREAD_STATE_RUNNING) {
+            
+            __CGNThread *running_thread = __cgn_curr_thread;
+            __cgn_curr_thread = staged_thread;
+
+            if (running_thread && running_thread->state == __CGN_THREAD_STATE_RUNNING) {
+                running_thread->state = __CGN_THREAD_STATE_READY;
+                __cgn_ready_queue_enqueue(running_thread);
+            }
+
+            staged_thread->state = __CGN_THREAD_STATE_RUNNING;
+            atomic_signal_fence(memory_order_seq_cst);
+            __cgn_loadctx(staged_thread);
+            __builtin_unreachable();
+        }
+    }
+
+    // If there are no waiting or ready threads, we shouldn't be in the scheduler
+    __builtin_unreachable();
 }
 
 static uint64_t *__cgn_get_thread_return_val(__CGNThread *thread) {
@@ -274,6 +354,8 @@ static __CGNThread *__cgn_add_thread(void **stack) {
 
     __cgn_block_set_in_use(block, pos);
     t->state = __CGN_THREAD_STATE_READY;
+    t->ready_next = NULL;
+    t->ready_prev = NULL;
 
     uint32_t new_id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
     if (new_id == UINT32_MAX) {
@@ -292,14 +374,22 @@ static __CGNThread *__cgn_add_thread(void **stack) {
 
     t->stack_ptr = *stack;
 
+    // Add to ready queue
+    __cgn_ready_queue_enqueue(t);
+
     return t;
 }
 
 static void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos) {
     __CGNThread *t = &block->threads[pos];
 
+    // Remove from ready queue if present
+    __cgn_ready_queue_remove(t);
+
     *t = (__CGNThread){0};
     t->state = __CGN_THREAD_STATE_READY;
+    t->ready_next = NULL;
+    t->ready_prev = NULL;
 
     __cgn_block_clear_in_use(block, pos);
 
@@ -378,13 +468,14 @@ __CGN_EXPORT void seagreen_init_rt(void) {
     __cgn_main_thread = &__cgn_threadlist.head->threads[0];
     __cgn_block_set_in_use(block, 0);
     __cgn_main_thread->state = __CGN_THREAD_STATE_RUNNING;
+    __cgn_main_thread->ready_next = NULL;
+    __cgn_main_thread->ready_prev = NULL;
 
     block->used_thread_count = 1;
 
     __cgn_curr_thread = __cgn_main_thread;
 
     __cgn_scheduled_block = block;
-    __cgn_scheduled_block_pos = 0;
     __cgn_scheduled_thread_pos = 0;
 
     uint64_t sched_alloc_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
@@ -467,12 +558,16 @@ __CGN_EXPORT void seagreen_free_rt(void) {
     __cgn_threadlist.block_count = 0;
     __cgn_threadlist.thread_count = 0;
 
+    __cgn_ready_queue.head = 0;
+    __cgn_ready_queue.tail = 0;
+    __cgn_ready_queue.count = 0;
+
     __cgn_curr_thread = 0;
     __cgn_main_thread = 0;
 
     __cgn_scheduled_block = 0;
-    __cgn_scheduled_block_pos = 0;
     __cgn_scheduled_thread_pos = 0;
+    __cgn_scheduler_call_count = 0;
 
     uint64_t sched_alloc_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
 #if !defined(_WIN32)
@@ -495,6 +590,7 @@ __CGN_EXPORT void async_yield(void) {
     if (!loaded) {
         if (__cgn_curr_thread->state == __CGN_THREAD_STATE_RUNNING) {
             __cgn_curr_thread->state = __CGN_THREAD_STATE_READY;
+            __cgn_ready_queue_enqueue(__cgn_curr_thread);
         }
 
         atomic_signal_fence(memory_order_seq_cst);
@@ -523,6 +619,7 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
         atomic_signal_fence(memory_order_seq_cst);
         if (!loaded) {
             __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
+            __cgn_ready_queue_remove(__cgn_curr_thread);
 
             atomic_signal_fence(memory_order_seq_cst);
             __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
