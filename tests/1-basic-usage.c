@@ -112,19 +112,3 @@ int main(void) {
 
     return 0;
 }
-
-// TODO: Test that spans multiple thread blocks and validates the stack isn't overwritten by other threads
-// TODO: Test with recursive function
-// TODO: Test with stack exist=ing before seagreen_init_rt()
-// TODO: Test with a bunch of threads
-// TODO: Test calling async within async
-// TODO: Test calling async from sync function called from within async
-// TODO: Test calling func with many args (both async_run and regular call)
-// TODO: Test with real IO
-// TODO: Test with uint64s
-// TODO: Test with floats
-// TODO: Test with void
-// TODO: Test on Linux
-// TODO: Test on Risc V
-// TODO: Test on x86 MacOS
-// TODO: Test on x86 Windows

@@ -26,6 +26,8 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
 
 ## TODO
 
+* Add more invariants to the Pirates code:
+  - No awaiting a handle twice
 * Improve readme with examples upfront. Focus on marketability upfront and then documentation later on.
 * Add a section on building
 * Thoughts on current segfault problem in test #2
@@ -43,3 +45,4 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
 * Multithreaded scheduler (in a separate header).
   - Linked list for threads that is synchronized using something similar to Linux's RCU.
   - Blocking thread pool for making synchronous functions async (sort of)
+* Test on multiple different architectures and operating systems
