@@ -12,7 +12,7 @@ USE_QEMU=false
 # Parse arguments for target architecture
 if [[ $# -gt 0 ]]; then
         case "${!#}" in
-            "x86_64-linux-gnu"|"aarch64-linux-gnu"|"x86_64-windows-gnu"|"aarch64-windows-gnu"|"x86_64-macos"|"aarch64-macos")
+            "x86_64-linux-gnu"|"aarch64-linux-gnu"|"x86_64-windows-gnu"|"aarch64-windows-gnu")
                 TARGET_ARCH="${!#}"
                 USE_QEMU=true
                 # Remove the target arch from arguments
@@ -26,7 +26,7 @@ if [[ $# -gt 0 ]]; then
                 ;;
             "riscv64-linux-gnu"|"riscv64"|"riscv"|"mips"|"mips64"|"arm"|"armv7"|"i386"|"i686")
                 echo "Error: Unsupported target architecture '${!#}'"
-                echo "Supported architectures: x86_64-linux-gnu, aarch64-linux-gnu, x86_64-windows-gnu, aarch64-windows-gnu, x86_64-macos, aarch64-macos"
+                echo "Supported architectures: x86_64-linux-gnu, aarch64-linux-gnu, x86_64-windows-gnu, aarch64-windows-gnu"
                 echo "Usage: ./$(basename $0) <clean|test|test release|release> [architecture|all-targets]"
                 exit 1
                 ;;
@@ -56,16 +56,6 @@ if [[ $TARGET_ARCH != "" && $TARGET_ARCH != "all-targets" ]]; then
             CC="zig cc -target aarch64-windows-gnu"
             QEMU_TARGET=""
             CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC -D_WIN64"
-            ;;
-        "x86_64-macos")
-            CC="zig cc -target x86_64-macos"
-            QEMU_TARGET=""
-            CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
-            ;;
-        "aarch64-macos")
-            CC="zig cc -target aarch64-macos"
-            QEMU_TARGET=""
-            CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
             ;;
     esac
     
@@ -246,12 +236,6 @@ function run_with_qemu {
             echo "On macOS, you can try: brew install wine-stable"
             return 1
             ;;
-        "x86_64-macos"|"aarch64-macos")
-            echo "macOS cross-compiled binary created at: $test_file"
-            echo "To run this binary, you need a macOS environment."
-            echo "Note: Cross-compiled macOS binaries may not run on different macOS versions."
-            return 1
-            ;;
         *)
             echo "Unknown target architecture: $TARGET_ARCH"
             return 1
@@ -265,7 +249,7 @@ if [[ $TARGET_ARCH = "all-targets" && $1 = "test" ]]; then
     echo "Running tests for all supported cross-compilation targets..."
     echo ""
     
-        ARCHES=("x86_64-linux-gnu" "aarch64-linux-gnu" "x86_64-windows-gnu" "aarch64-windows-gnu" "x86_64-macos" "aarch64-macos")
+        ARCHES=("x86_64-linux-gnu" "aarch64-linux-gnu" "x86_64-windows-gnu" "aarch64-windows-gnu")
     OVERALL_SUCCESS=0
     OVERALL_FAILED=0
     
@@ -295,16 +279,6 @@ if [[ $TARGET_ARCH = "all-targets" && $1 = "test" ]]; then
                     CC="zig cc -target aarch64-windows-gnu"
                     QEMU_TARGET=""
                     CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC -D_WIN64"
-                    ;;
-                "x86_64-macos")
-                    CC="zig cc -target x86_64-macos"
-                    QEMU_TARGET=""
-                    CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
-                    ;;
-                "aarch64-macos")
-                    CC="zig cc -target aarch64-macos"
-                    QEMU_TARGET=""
-                    CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
                     ;;
             esac
         

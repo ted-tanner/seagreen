@@ -32,7 +32,6 @@ SeaGreen has been tested on the following targets (compiled with Zig's cross-com
 * `aarch64-linux-gnu` (currently broken)
 * `x86_64-windows-gnu` (currently broken)
 * `aarch64-windows-gnu` (currently broken)
-* `x86_64-macos` (currently broken)
 * `aarch64-macos`
 
 If you would like to add support for another target, please submit a PR! We'd love to support as many targets as possible. Adding support for a target must not break or affect the performance of an already-supported target.
