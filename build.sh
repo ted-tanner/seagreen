@@ -26,6 +26,7 @@ fi
 : "${VM_SSH_WAIT_SECS:=180}"          # total seconds to wait for SSH
 : "${VM_SSH_POLL_SECS:=5}"            # seconds between SSH probes
 : "${VM_SEED_ISO:=}"                  # path to a NoCloud seed ISO (CIDATA)
+: "${VM_REUSE:=false}"                # reuse a single VM per-arch to run all tests
 
 QEMU_X86_SYS=qemu-system-x86_64
 QEMU_ARM_SYS=qemu-system-aarch64
@@ -277,6 +278,68 @@ function shutdown_vm {
     "${ssh_cmd_base[@]}" -p "$port" "$VM_SSH_USER@127.0.0.1" "sudo poweroff || shutdown /s /t 0 || true" >/dev/null 2>&1 || true
 }
 
+# Boot a Linux VM once and prepare for running multiple tests over SSH
+function boot_linux_vm_once {
+    local arch="$1" img="$2" ssh_port="$3"
+
+    local qemu_bin
+    local accel_args=()
+    local machine_args=()
+    if [[ $arch = "aarch64" ]]; then
+        qemu_bin="$QEMU_ARM_SYS"
+        accel_args=(-accel hvf)
+        machine_args=(-machine virt)
+    else
+        qemu_bin="$QEMU_X86_SYS"
+        accel_args=()
+        machine_args=(-machine q35)
+    fi
+
+    ensure_qemu "$qemu_bin"
+    ensure_vm_image "$img" "Linux ($arch)"
+
+    "$qemu_bin" "${accel_args[@]+"${accel_args[@]}"}" -display none -nographic -m 2048 -smp 2 \
+        "${machine_args[@]}" \
+        -netdev user,id=net0,hostfwd=tcp::"$ssh_port"-:22 \
+        -device virtio-net-pci,netdev=net0 \
+        -drive file="$img",if=virtio \
+        ${VM_SEED_ISO:+-drive if=virtio,format=raw,file="$VM_SEED_ISO"} \
+        -serial mon:stdio \
+        >/dev/null 2>&1 &
+    local vm_pid=$!
+    echo "$vm_pid" > "/tmp/seagreen-qemu-$ssh_port.pid"
+
+    echo "Waiting for SSH on port $ssh_port..."
+    wait_for_ssh "$ssh_port"
+
+    # Prepare directory once
+    "${ssh_cmd_base[@]}" -p "$ssh_port" "$VM_SSH_USER@127.0.0.1" "mkdir -p ~/testbin && chmod 700 ~/testbin"
+}
+
+# Run a single test binary inside an already-booted Linux VM
+function run_test_in_linux_vm_once {
+    local ssh_port="$1" host_test_bin="$2" test_name="$3"
+    local guest_bin="/home/$VM_SSH_USER/testbin/$test_name"
+
+    "${scp_cmd_base[@]}" -P "$ssh_port" "$host_test_bin" "$VM_SSH_USER@127.0.0.1:$guest_bin"
+    "${ssh_cmd_base[@]}" -p "$ssh_port" "$VM_SSH_USER@127.0.0.1" "chmod +x \"$guest_bin\""
+    "${ssh_cmd_base[@]}" -p "$ssh_port" "$VM_SSH_USER@127.0.0.1" \
+        "if command -v stdbuf >/dev/null 2>&1; then stdbuf -oL -eL \"$guest_bin\"; else \"$guest_bin\"; fi" 2>&1
+}
+
+function stop_linux_vm_once {
+    local ssh_port="$1"
+    shutdown_vm "$ssh_port"
+    if [[ -f "/tmp/seagreen-qemu-$ssh_port.pid" ]]; then
+        local pid
+        pid=$(cat "/tmp/seagreen-qemu-$ssh_port.pid" || true)
+        rm -f "/tmp/seagreen-qemu-$ssh_port.pid" || true
+        if [[ -n "$pid" ]]; then
+            wait "$pid" 2>/dev/null || true
+        fi
+    fi
+}
+
 function run_in_linux_vm {
     local arch="$1"           # x86_64 | aarch64
     local img="$2"
@@ -317,20 +380,25 @@ function run_in_linux_vm {
     echo "Waiting for SSH on port $ssh_port..."
     wait_for_ssh "$ssh_port"
 
-    # Prepare dir, copy test binary, run it (stream both stdout and stderr)
+    # Prepare dir
     "${ssh_cmd_base[@]}" -p "$ssh_port" "$VM_SSH_USER@127.0.0.1" "mkdir -p ~/testbin && chmod 700 ~/testbin"
-    "${scp_cmd_base[@]}" -P "$ssh_port" "$host_test_bin" "$VM_SSH_USER@127.0.0.1:$guest_bin"
-    # make executable, then run with line-buffering if stdbuf exists
-    "${ssh_cmd_base[@]}" -p "$ssh_port" "$VM_SSH_USER@127.0.0.1" "chmod +x \"$guest_bin\""
-    "${ssh_cmd_base[@]}" -p "$ssh_port" "$VM_SSH_USER@127.0.0.1" \
-        "if command -v stdbuf >/dev/null 2>&1; then stdbuf -oL -eL \"$guest_bin\"; else \"$guest_bin\"; fi" 2>&1
-    local rc=$?
 
-    shutdown_vm "$ssh_port"
-    wait $vm_pid || true
-    trap - EXIT
-
-    return $rc
+    # If not in reuse mode, copy+run then shutdown
+    if [[ "$VM_REUSE" != true ]]; then
+        "${scp_cmd_base[@]}" -P "$ssh_port" "$host_test_bin" "$VM_SSH_USER@127.0.0.1:$guest_bin"
+        "${ssh_cmd_base[@]}" -p "$ssh_port" "$VM_SSH_USER@127.0.0.1" "chmod +x \"$guest_bin\""
+        "${ssh_cmd_base[@]}" -p "$ssh_port" "$VM_SSH_USER@127.0.0.1" \
+            "if command -v stdbuf >/dev/null 2>&1; then stdbuf -oL -eL \"$guest_bin\"; else \"$guest_bin\"; fi" 2>&1
+        local rc=$?
+        shutdown_vm "$ssh_port"
+        wait $vm_pid || true
+        trap - EXIT
+        return $rc
+    else
+        # In reuse mode, leave VM running; record PID for caller
+        echo "$vm_pid" > "/tmp/seagreen-qemu-$$-$ssh_port.pid"
+        return 0
+    fi
 }
 
 function run_in_windows_vm {
@@ -504,18 +572,49 @@ if [[ ${TARGET_ARCH:-} = "all-targets" && ${1:-} = "test" ]]; then
             done
         fi
 
-        # Run
+        # Run (default: reuse one VM per-arch for Linux)
         SUCCESS_COUNT=0
         TEST_COUNT=0
-        for TEST_NAME in $TEST_NAMES; do
-            echo ""
-            echo "----- Running test: $TEST_NAME -----"
-            echo "Running inside QEMU VM for $ARCH"
-            if run_with_qemu "$TARGET_DIR/tests/$TEST_NAME" "$TEST_NAME"; then
-                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-            fi
-            TEST_COUNT=$((TEST_COUNT + 1))
-        done
+
+        if [[ "$ARCH" = "x86_64-linux-gnu" ]]; then
+            boot_linux_vm_once x86_64 "$QEMU_X86_LINUX_IMG" "$QEMU_X86_LINUX_SSH_PORT"
+            SSH_PORT="$QEMU_X86_LINUX_SSH_PORT"
+            for TEST_NAME in $TEST_NAMES; do
+                echo ""
+                echo "----- Running test: $TEST_NAME -----"
+                set +e
+                run_test_in_linux_vm_once "$SSH_PORT" "$TARGET_DIR/tests/$TEST_NAME" "$TEST_NAME"
+                rc=$?
+                set -e
+                if [[ $rc -eq 0 ]]; then SUCCESS_COUNT=$((SUCCESS_COUNT+1)); fi
+                TEST_COUNT=$((TEST_COUNT+1))
+            done
+            stop_linux_vm_once "$SSH_PORT"
+        elif [[ "$ARCH" = "aarch64-linux-gnu" ]]; then
+            boot_linux_vm_once aarch64 "$QEMU_AARCH64_LINUX_IMG" "$QEMU_AARCH64_LINUX_SSH_PORT"
+            SSH_PORT="$QEMU_AARCH64_LINUX_SSH_PORT"
+            for TEST_NAME in $TEST_NAMES; do
+                echo ""
+                echo "----- Running test: $TEST_NAME -----"
+                set +e
+                run_test_in_linux_vm_once "$SSH_PORT" "$TARGET_DIR/tests/$TEST_NAME" "$TEST_NAME"
+                rc=$?
+                set -e
+                if [[ $rc -eq 0 ]]; then SUCCESS_COUNT=$((SUCCESS_COUNT+1)); fi
+                TEST_COUNT=$((TEST_COUNT+1))
+            done
+            stop_linux_vm_once "$SSH_PORT"
+        else
+            for TEST_NAME in $TEST_NAMES; do
+                echo ""
+                echo "----- Running test: $TEST_NAME -----"
+                echo "Running inside QEMU VM for $ARCH"
+                if run_with_qemu "$TARGET_DIR/tests/$TEST_NAME" "$TEST_NAME"; then
+                    SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+                fi
+                TEST_COUNT=$((TEST_COUNT + 1))
+            done
+        fi
 
         echo ""
         echo "------------------"
@@ -596,29 +695,54 @@ else
         SUCCESS_COUNT=0
         TEST_COUNT=0
 
-        for TEST_NAME in $TEST_NAMES; do
-            echo ""
-            echo "----- Running test: $TEST_NAME -----"
-
-            if [[ ${USE_QEMU:-false} = true && ${TARGET_ARCH:-} != "" ]]; then
-                echo "Running inside QEMU VM for $TARGET_ARCH"
+        if [[ ${USE_QEMU:-false} = true && ${TARGET_ARCH:-} = "x86_64-linux-gnu" ]]; then
+            boot_linux_vm_once x86_64 "$QEMU_X86_LINUX_IMG" "$QEMU_X86_LINUX_SSH_PORT"
+            SSH_PORT="$QEMU_X86_LINUX_SSH_PORT"
+            for TEST_NAME in $TEST_NAMES; do
+                echo ""
+                echo "----- Running test: $TEST_NAME -----"
                 set +e
-                time run_with_qemu "$TARGET_DIR/tests/$TEST_NAME" "$TEST_NAME"
+                run_test_in_linux_vm_once "$SSH_PORT" "$TARGET_DIR/tests/$TEST_NAME" "$TEST_NAME"
                 rc=$?
                 set -e
-            else
+                if [[ $rc -eq 0 ]]; then SUCCESS_COUNT=$((SUCCESS_COUNT + 1)); fi
+                TEST_COUNT=$((TEST_COUNT + 1))
+            done
+            stop_linux_vm_once "$SSH_PORT"
+        elif [[ ${USE_QEMU:-false} = true && ${TARGET_ARCH:-} = "aarch64-linux-gnu" ]]; then
+            boot_linux_vm_once aarch64 "$QEMU_AARCH64_LINUX_IMG" "$QEMU_AARCH64_LINUX_SSH_PORT"
+            SSH_PORT="$QEMU_AARCH64_LINUX_SSH_PORT"
+            for TEST_NAME in $TEST_NAMES; do
+                echo ""
+                echo "----- Running test: $TEST_NAME -----"
                 set +e
-                time "$TARGET_DIR/tests/$TEST_NAME"
+                run_test_in_linux_vm_once "$SSH_PORT" "$TARGET_DIR/tests/$TEST_NAME" "$TEST_NAME"
                 rc=$?
                 set -e
-            fi
-
-            if [[ $rc -eq 0 ]]; then
-                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-            fi
-
-            TEST_COUNT=$((TEST_COUNT + 1))
-        done
+                if [[ $rc -eq 0 ]]; then SUCCESS_COUNT=$((SUCCESS_COUNT + 1)); fi
+                TEST_COUNT=$((TEST_COUNT + 1))
+            done
+            stop_linux_vm_once "$SSH_PORT"
+        else
+            for TEST_NAME in $TEST_NAMES; do
+                echo ""
+                echo "----- Running test: $TEST_NAME -----"
+                if [[ ${USE_QEMU:-false} = true && ${TARGET_ARCH:-} != "" ]]; then
+                    echo "Running inside QEMU VM for $TARGET_ARCH"
+                    set +e
+                    time run_with_qemu "$TARGET_DIR/tests/$TEST_NAME" "$TEST_NAME"
+                    rc=$?
+                    set -e
+                else
+                    set +e
+                    time "$TARGET_DIR/tests/$TEST_NAME"
+                    rc=$?
+                    set -e
+                fi
+                if [[ $rc -eq 0 ]]; then SUCCESS_COUNT=$((SUCCESS_COUNT + 1)); fi
+                TEST_COUNT=$((TEST_COUNT + 1))
+            done
+        fi
 
         echo ""
         echo "------------------"
