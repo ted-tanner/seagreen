@@ -9,6 +9,7 @@ _Thread_local __CGNReadyQueue __cgn_ready_queue = {0};
 _Thread_local __CGNThread *volatile __cgn_curr_thread = 0;
 _Thread_local __CGNThread *__cgn_main_thread = 0;
 _Thread_local void *__cgn_sched_stack_alloc = 0;
+_Thread_local void *__cgn_aligned_sched_stack = 0;
 
 _Thread_local __CGNThreadBlock *__cgn_scheduled_block = 0;
 _Thread_local uint32_t __cgn_scheduled_thread_pos = 0;
@@ -311,7 +312,7 @@ __attribute__((noreturn)) void __cgn_thread_entry(void) {
     *__cgn_get_thread_return_val(self) = rv;
     self->state = __CGN_THREAD_STATE_DONE;
     atomic_signal_fence(memory_order_seq_cst);
-    __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
+    __cgn_jumpwithstack(&__cgn_scheduler, __cgn_aligned_sched_stack);
     __builtin_unreachable();
 }
 
@@ -358,7 +359,10 @@ static __CGNThread *__cgn_add_thread(void **stack) {
     uint64_t stack_plus_guard_size = SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
     // pos * stack_plus_guard_size gets us to the bottom of the downward-growing stack,
     // + stack_plus_guard_size gets us to the top (where the stack actually begins)
-    *stack = (char *)block->stacks + pos * stack_plus_guard_size + stack_plus_guard_size;
+    void *stack_top = (char *)block->stacks + pos * stack_plus_guard_size + stack_plus_guard_size;
+    
+    // Align stack pointer to 16 bytes for x86_64 ABI compliance
+    *stack = (void *)((uintptr_t)stack_top & ~15ULL);
 
     t->stack_ptr = *stack;
 
@@ -485,6 +489,9 @@ __CGN_EXPORT void seagreen_init_rt(void) {
 #endif
 
     __cgn_sched_stack_alloc = sched_alloc;
+
+    void *stack_top = (char *)sched_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize;
+    __cgn_aligned_sched_stack = (void *)((uintptr_t)stack_top & ~15ULL);
 }
 
 __CGN_EXPORT CGNThreadHandle async_run(__CGNAsyncFn fn, void *arg) {
@@ -497,7 +504,7 @@ __CGN_EXPORT CGNThreadHandle async_run(__CGNAsyncFn fn, void *arg) {
     atomic_signal_fence(memory_order_seq_cst);
     if (loaded) {
         atomic_signal_fence(memory_order_seq_cst);
-        __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
+        __cgn_jumpwithstack(&__cgn_scheduler, __cgn_aligned_sched_stack);
         __builtin_unreachable();
     }
     return (CGNThreadHandle)t->id;
@@ -560,6 +567,7 @@ __CGN_EXPORT void seagreen_free_rt(void) {
 #endif
 
     __cgn_sched_stack_alloc = 0;
+    __cgn_aligned_sched_stack = 0;
 }
 
 __CGN_EXPORT void async_yield(void) {
@@ -573,7 +581,7 @@ __CGN_EXPORT void async_yield(void) {
         }
 
         atomic_signal_fence(memory_order_seq_cst);
-        __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
+        __cgn_jumpwithstack(&__cgn_scheduler, __cgn_aligned_sched_stack);
         __builtin_unreachable();
     }
 }

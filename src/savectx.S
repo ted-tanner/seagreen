@@ -17,7 +17,7 @@
 __CGN_SAVECTX_SYMBOL:
     movq %rsp, 0(%rdi)
 
-    leaq -__CGN_CTX_SAVE_SIZE(%rsp), %r8
+    leaq -__CGN_CTX_SAVE_SIZE-128(%rsp), %r8
 
     movq 8(%rsp), %rax
     movq %rbp, 0(%r8)
@@ -28,14 +28,26 @@ __CGN_SAVECTX_SYMBOL:
     movq %r15, 40(%r8)
     movq %rbx, 48(%r8)
 
+    movdqu %xmm0, 56(%r8)
+    movdqu %xmm1, 72(%r8)
+    movdqu %xmm2, 88(%r8)
+    movdqu %xmm3, 104(%r8)
+    movdqu %xmm4, 120(%r8)
+    movdqu %xmm5, 136(%r8)
+    movdqu %xmm6, 152(%r8)
+    movdqu %xmm7, 168(%r8)
+
+    stmxcsr 184(%r8)
+
     movq $0, %rax
     ret
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
+    andq $-16, %rsi
     movq %rsi, 0(%rdi)
 
-    leaq -__CGN_CTX_SAVE_SIZE(%rsi), %r8
+    leaq -__CGN_CTX_SAVE_SIZE-128(%rsi), %r8
 
     movq $0, 0(%r8)
 #if defined(__APPLE__)
@@ -50,7 +62,18 @@ __CGN_SAVENEWCTX_SYMBOL:
     movq $0, 40(%r8)
     movq $0, 48(%r8)
 
+    pxor %xmm0, %xmm0
+    movdqu %xmm0, 56(%r8)
+    movdqu %xmm0, 72(%r8)
+    movdqu %xmm0, 88(%r8)
+    movdqu %xmm0, 104(%r8)
+    movdqu %xmm0, 120(%r8)
+    movdqu %xmm0, 136(%r8)
+    movdqu %xmm0, 152(%r8)
+    movdqu %xmm0, 168(%r8)
+
     movq $0, %rax
+    stmxcsr 184(%r8)
     ret
 
 #elif defined(__x86_64__) && defined(_WIN64)
@@ -157,8 +180,13 @@ __CGN_SAVENEWCTX_SYMBOL:
 
     sub x9, x1, #__CGN_CTX_SAVE_SIZE
 
+#if defined(__APPLE__)
     adrp x10, ___cgn_thread_entry@PAGE
     add  x10, x10, ___cgn_thread_entry@PAGEOFF
+#else
+    adrp x10, __cgn_thread_entry
+    add  x10, x10, #:lo12:__cgn_thread_entry
+#endif
     stp  x10, xzr, [x9, 0]
     stp x19, x20, [x9, 16]
     stp x21, x22, [x9, 32]

@@ -17,7 +17,7 @@
 __CGN_LOADCTX_SYMBOL:
     movq 0(%rdi), %rsp
 
-    leaq -__CGN_CTX_SAVE_SIZE(%rsp), %r10
+    leaq -__CGN_CTX_SAVE_SIZE-128(%rsp), %r10
 
     movq 0(%r10), %rbp
     movq 8(%r10), %r11
@@ -27,12 +27,24 @@ __CGN_LOADCTX_SYMBOL:
     movq 40(%r10), %r15
     movq 48(%r10), %rbx
 
+    movdqu 56(%r10), %xmm0
+    movdqu 72(%r10), %xmm1
+    movdqu 88(%r10), %xmm2
+    movdqu 104(%r10), %xmm3
+    movdqu 120(%r10), %xmm4
+    movdqu 136(%r10), %xmm5
+    movdqu 152(%r10), %xmm6
+    movdqu 168(%r10), %xmm7
+
+    ldmxcsr 184(%r10)
+
     movq $1, %rax
     jmp *%r11
 
 .balign 4
 __CGN_JUMPWITHSTACK_SYMBOL:
     movq %rsi, %rsp
+    andq $-16, %rsp
     jmp *%rdi
 
 #elif defined(__x86_64__) && defined(_WIN64)

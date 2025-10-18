@@ -245,6 +245,7 @@ __CGN_EXPORT CGNThreadHandle async_run(__CGNAsyncFn fn, void *arg);
 extern _Thread_local int __cgn_pagesize;
 extern _Thread_local __CGNThread *volatile __cgn_curr_thread;
 extern _Thread_local void *__cgn_sched_stack_alloc;
+extern _Thread_local void *__cgn_aligned_sched_stack;
 
 #define SEAGREEN_H
 #endif

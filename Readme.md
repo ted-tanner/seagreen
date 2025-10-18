@@ -24,6 +24,19 @@ Some niceties of SeaGreen:
 
 If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault parrot or worse, cause undefined behavior on yon C.
 
+## Architecture and System Support
+
+SeaGreen has been tested on the following targets (compiled with `gcc`):
+
+* `x86_64-linux-gnu`
+* `aarch64-linux-gnu`
+* `x86_64-windows-gnu`
+* `aarch64-windows-gnu`
+* `x86_64-macos-gnu`
+* `aarch64-macos-gnu`
+
+If you would like to add support for another target, please submit a PR! We'd love to support as many targets as possible. Adding support for a target must not break or affect the performance of an already-supported target.
+
 ## TODO
 
 * Add more invariants to the Pirates code:
