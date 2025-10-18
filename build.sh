@@ -438,38 +438,50 @@ else
             if [[ $2 = "release" && $# -gt 2 ]]; then
                 # Case: test release <test>
                 TEST_ARG="$3"
+            elif [[ $2 = "release" && $# -eq 2 ]]; then
+                # Case: test release (run all tests)
+                TEST_ARG=""
             else
                 # Case: test <test>
                 TEST_ARG="$2"
             fi
             
-            # First, try to interpret as a test number
-            if [[ "$TEST_ARG" =~ ^[0-9]+$ ]]; then
-                TEST_FILE=$(test_number_to_file "$TEST_ARG")
-                if [[ -z "$TEST_FILE" ]]; then
-                    echo "Error: Test number '$TEST_ARG' not found"
-                    echo "Available test numbers:"
-                    for FILE in $TEST_SRC_FILES; do
-                        test_name=$(file_to_test_name $FILE)
-                        test_num=$(echo $test_name | cut -d'-' -f1)
-                        echo "  $test_num - $test_name"
-                    done
+            # If TEST_ARG is empty, run all tests
+            if [[ -z "$TEST_ARG" ]]; then
+                # Build all test files
+                for FILE in $TEST_SRC_FILES; do
+                    TEST_NAMES+=" $(file_to_test_name $FILE)"
+                    build_test $FILE
+                done
+            else
+                # First, try to interpret as a test number
+                if [[ "$TEST_ARG" =~ ^[0-9]+$ ]]; then
+                    TEST_FILE=$(test_number_to_file "$TEST_ARG")
+                    if [[ -z "$TEST_FILE" ]]; then
+                        echo "Error: Test number '$TEST_ARG' not found"
+                        echo "Available test numbers:"
+                        for FILE in $TEST_SRC_FILES; do
+                            test_name=$(file_to_test_name $FILE)
+                            test_num=$(echo $test_name | cut -d'-' -f1)
+                            echo "  $test_num - $test_name"
+                        done
+                        exit 1
+                    fi
+                # If not a number, try as filename
+                elif [[ -f "$TEST_ARG" || -f "./tests/$TEST_ARG" ]]; then
+                    TEST_FILE="$TEST_ARG"
+                    if [[ ! -f "$TEST_FILE" ]]; then
+                        TEST_FILE="./tests/$TEST_ARG"
+                    fi
+                else
+                    echo "Error: Test '$TEST_ARG' not found"
+                    echo "Provide either a test number (e.g., '1') or filename (e.g., '1-basic-foo-bar.c')"
                     exit 1
                 fi
-            # If not a number, try as filename
-            elif [[ -f "$TEST_ARG" || -f "./tests/$TEST_ARG" ]]; then
-                TEST_FILE="$TEST_ARG"
-                if [[ ! -f "$TEST_FILE" ]]; then
-                    TEST_FILE="./tests/$TEST_ARG"
-                fi
-            else
-                echo "Error: Test '$TEST_ARG' not found"
-                echo "Provide either a test number (e.g., '1') or filename (e.g., '1-basic-foo-bar.c')"
-                exit 1
+                
+                TEST_NAMES+=" $(file_to_test_name $TEST_FILE)"
+                build_test $TEST_FILE
             fi
-            
-            TEST_NAMES+=" $(file_to_test_name $TEST_FILE)"
-            build_test $TEST_FILE
         else
             # Build all test files
             for FILE in $TEST_SRC_FILES; do
