@@ -26,13 +26,14 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
 
 ## Architecture and System Support
 
-SeaGreen has been tested on the following targets (compiled with `gcc`):
+SeaGreen has been tested on the following targets (compiled with Zig's cross-compiler, which uses clang and LLVM):
 
 * `x86_64-linux-gnu` (currently broken)
 * `aarch64-linux-gnu` (currently broken)
 * `x86_64-windows-gnu` (currently broken)
 * `aarch64-windows-gnu` (currently broken)
-* `aarch64-macos-gnu`
+* `x86_64-macos` (currently broken)
+* `aarch64-macos`
 
 If you would like to add support for another target, please submit a PR! We'd love to support as many targets as possible. Adding support for a target must not break or affect the performance of an already-supported target.
 

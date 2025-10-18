@@ -12,7 +12,7 @@ USE_QEMU=false
 # Parse arguments for target architecture
 if [[ $# -gt 0 ]]; then
         case "${!#}" in
-            "x86_64-linux-gnu"|"aarch64-linux-gnu"|"x86_64-windows-gnu")
+            "x86_64-linux-gnu"|"aarch64-linux-gnu"|"x86_64-windows-gnu"|"aarch64-windows-gnu"|"x86_64-macos"|"aarch64-macos")
                 TARGET_ARCH="${!#}"
                 USE_QEMU=true
                 # Remove the target arch from arguments
@@ -24,9 +24,9 @@ if [[ $# -gt 0 ]]; then
                 # Remove the target arch from arguments
                 set -- "${@:1:$(($#-1))}"
                 ;;
-            "riscv64-linux-gnu"|"riscv64"|"riscv"|"mips"|"mips64"|"arm"|"armv7"|"i386"|"i686"|"aarch64-windows-gnu"|"x86_64-macos"|"aarch64-macos")
+            "riscv64-linux-gnu"|"riscv64"|"riscv"|"mips"|"mips64"|"arm"|"armv7"|"i386"|"i686")
                 echo "Error: Unsupported target architecture '${!#}'"
-                echo "Supported architectures: x86_64-linux-gnu, aarch64-linux-gnu, x86_64-windows-gnu"
+                echo "Supported architectures: x86_64-linux-gnu, aarch64-linux-gnu, x86_64-windows-gnu, aarch64-windows-gnu, x86_64-macos, aarch64-macos"
                 echo "Usage: ./$(basename $0) <clean|test|test release|release> [architecture|all-targets]"
                 exit 1
                 ;;
@@ -38,17 +38,34 @@ fi
 if [[ $TARGET_ARCH != "" && $TARGET_ARCH != "all-targets" ]]; then
     case $TARGET_ARCH in
         "x86_64-linux-gnu")
-            CC=x86_64-linux-gnu-gcc
+            CC="zig cc -target x86_64-linux-gnu"
             QEMU_TARGET=qemu-x86_64
+            CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
             ;;
         "aarch64-linux-gnu")
-            CC=aarch64-linux-gnu-gcc
+            CC="zig cc -target aarch64-linux-gnu"
             QEMU_TARGET=qemu-aarch64
+            CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
             ;;
         "x86_64-windows-gnu")
-            CC=x86_64-w64-mingw32-gcc
+            CC="zig cc -target x86_64-windows-gnu"
             QEMU_TARGET=""
-            CC_FLAGS="$CC_FLAGS -D_WIN64"
+            CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC -D_WIN64"
+            ;;
+        "aarch64-windows-gnu")
+            CC="zig cc -target aarch64-windows-gnu"
+            QEMU_TARGET=""
+            CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC -D_WIN64"
+            ;;
+        "x86_64-macos")
+            CC="zig cc -target x86_64-macos"
+            QEMU_TARGET=""
+            CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
+            ;;
+        "aarch64-macos")
+            CC="zig cc -target aarch64-macos"
+            QEMU_TARGET=""
+            CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
             ;;
     esac
     
@@ -57,21 +74,9 @@ if [[ $TARGET_ARCH != "" && $TARGET_ARCH != "all-targets" ]]; then
         echo "Error: Cross-compiler '$CC' not found"
         echo ""
         echo "To install the required cross-compiler:"
-        case $TARGET_ARCH in
-            "x86_64-linux-gnu")
-                echo "  brew tap messense/macos-cross-toolchains"
-                echo "  brew install messense/macos-cross-toolchains/x86_64-linux-gnu"
-                ;;
-            "aarch64-linux-gnu")
-                echo "  brew tap messense/macos-cross-toolchains"
-                echo "  brew install messense/macos-cross-toolchains/aarch64-linux-gnu"
-                ;;
-            "x86_64-windows-gnu")
-                echo "  brew install mingw-w64"
-                ;;
-        esac
+        echo "  brew install zig"
         echo ""
-        echo "For more information, visit: https://github.com/messense/homebrew-macos-cross-toolchains"
+        echo "Zig provides cross-compilation support for all target architectures."
         exit 1
     fi
     
@@ -167,40 +172,13 @@ function build_objs {
         fi
     done
 
-    # Use cross-compiler's ar and ranlib when cross-compiling
+    # Use Zig's ar for cross-compilation, system ar for native
     if [[ $TARGET_ARCH != "" ]]; then
-        case $TARGET_ARCH in
-            "x86_64-linux-gnu")
-                AR=x86_64-linux-gnu-ar
-                RANLIB=x86_64-linux-gnu-ranlib
-                ;;
-            "aarch64-linux-gnu")
-                AR=aarch64-linux-gnu-ar
-                RANLIB=aarch64-linux-gnu-ranlib
-                ;;
-            "x86_64-windows-gnu")
-                AR=x86_64-w64-mingw32-ar
-                RANLIB=x86_64-w64-mingw32-ranlib
-                ;;
-            "aarch64-windows-gnu")
-                AR=aarch64-w64-mingw32-ar
-                RANLIB=aarch64-w64-mingw32-ranlib
-                ;;
-            "x86_64-macos")
-                AR=x86_64-apple-darwin-ar
-                RANLIB=x86_64-apple-darwin-ranlib
-                ;;
-            "aarch64-macos")
-                AR=aarch64-apple-darwin-ar
-                RANLIB=aarch64-apple-darwin-ranlib
-                ;;
-        esac
+        zig ar rcs $OUT/$LIB_NAME.a $OUT/*.o
     else
-        AR=ar
-        RANLIB=ranlib
+        ar rcs $OUT/$LIB_NAME.a $OUT/*.o
+        ranlib $OUT/$LIB_NAME.a
     fi
-    
-    $AR rcs $OUT/$LIB_NAME.a $OUT/*.o
 }
 
 function file_to_test_name {
@@ -287,7 +265,7 @@ if [[ $TARGET_ARCH = "all-targets" && $1 = "test" ]]; then
     echo "Running tests for all supported cross-compilation targets..."
     echo ""
     
-        ARCHES=("x86_64-linux-gnu" "aarch64-linux-gnu" "x86_64-windows-gnu")
+        ARCHES=("x86_64-linux-gnu" "aarch64-linux-gnu" "x86_64-windows-gnu" "aarch64-windows-gnu" "x86_64-macos" "aarch64-macos")
     OVERALL_SUCCESS=0
     OVERALL_FAILED=0
     
@@ -299,17 +277,34 @@ if [[ $TARGET_ARCH = "all-targets" && $1 = "test" ]]; then
             # Set up this architecture
             case $ARCH in
                 "x86_64-linux-gnu")
-                    CC=x86_64-linux-gnu-gcc
+                    CC="zig cc -target x86_64-linux-gnu"
                     QEMU_TARGET=qemu-x86_64
+                    CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
                     ;;
                 "aarch64-linux-gnu")
-                    CC=aarch64-linux-gnu-gcc
+                    CC="zig cc -target aarch64-linux-gnu"
                     QEMU_TARGET=qemu-aarch64
+                    CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
                     ;;
                 "x86_64-windows-gnu")
-                    CC=x86_64-w64-mingw32-gcc
+                    CC="zig cc -target x86_64-windows-gnu"
                     QEMU_TARGET=""
-                    CC_FLAGS="$CC_FLAGS -D_WIN64"
+                    CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC -D_WIN64"
+                    ;;
+                "aarch64-windows-gnu")
+                    CC="zig cc -target aarch64-windows-gnu"
+                    QEMU_TARGET=""
+                    CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC -D_WIN64"
+                    ;;
+                "x86_64-macos")
+                    CC="zig cc -target x86_64-macos"
+                    QEMU_TARGET=""
+                    CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
+                    ;;
+                "aarch64-macos")
+                    CC="zig cc -target aarch64-macos"
+                    QEMU_TARGET=""
+                    CC_FLAGS="-Wall -std=c11 -g -fvisibility=hidden -fPIC"
                     ;;
             esac
         
