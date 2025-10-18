@@ -12,22 +12,22 @@ USE_QEMU=false
 # Parse arguments for target architecture
 if [[ $# -gt 0 ]]; then
         case "${!#}" in
-            "x86_64-linux-gnu"|"aarch64-linux-gnu"|"x86_64-windows-gnu"|"aarch64-windows-gnu"|"x86_64-macos"|"aarch64-macos")
+            "x86_64-linux-gnu"|"aarch64-linux-gnu"|"x86_64-windows-gnu")
                 TARGET_ARCH="${!#}"
                 USE_QEMU=true
                 # Remove the target arch from arguments
                 set -- "${@:1:$(($#-1))}"
                 ;;
-            "all-arches")
-                TARGET_ARCH="all-arches"
+            "all-targets")
+                TARGET_ARCH="all-targets"
                 USE_QEMU=true
                 # Remove the target arch from arguments
                 set -- "${@:1:$(($#-1))}"
                 ;;
-            "riscv64-linux-gnu"|"riscv64"|"riscv"|"mips"|"mips64"|"arm"|"armv7"|"i386"|"i686")
+            "riscv64-linux-gnu"|"riscv64"|"riscv"|"mips"|"mips64"|"arm"|"armv7"|"i386"|"i686"|"aarch64-windows-gnu"|"x86_64-macos"|"aarch64-macos")
                 echo "Error: Unsupported target architecture '${!#}'"
-                echo "Supported architectures: x86_64-linux-gnu, aarch64-linux-gnu, x86_64-windows-gnu, aarch64-windows-gnu, x86_64-macos, aarch64-macos"
-                echo "Usage: ./$(basename $0) <clean|test|test release|release> [architecture|all-arches]"
+                echo "Supported architectures: x86_64-linux-gnu, aarch64-linux-gnu, x86_64-windows-gnu"
+                echo "Usage: ./$(basename $0) <clean|test|test release|release> [architecture|all-targets]"
                 exit 1
                 ;;
         esac
@@ -35,7 +35,7 @@ fi
 
 
 # Set up cross-compilation if target architecture is specified
-if [[ $TARGET_ARCH != "" && $TARGET_ARCH != "all-arches" ]]; then
+if [[ $TARGET_ARCH != "" && $TARGET_ARCH != "all-targets" ]]; then
     case $TARGET_ARCH in
         "x86_64-linux-gnu")
             CC=x86_64-linux-gnu-gcc
@@ -48,38 +48,7 @@ if [[ $TARGET_ARCH != "" && $TARGET_ARCH != "all-arches" ]]; then
         "x86_64-windows-gnu")
             CC=x86_64-w64-mingw32-gcc
             QEMU_TARGET=""
-            ;;
-        "aarch64-windows-gnu")
-            CC=aarch64-w64-mingw32-gcc
-            QEMU_TARGET=""
-            ;;
-        "x86_64-macos")
-            CC=x86_64-apple-darwin-gcc
-            QEMU_TARGET=""
-            ;;
-        "aarch64-macos")
-            CC=aarch64-apple-darwin-gcc
-            QEMU_TARGET=""
-            ;;
-    esac
-    
-    # Check for Windows and macOS architectures (not yet fully supported)
-    case $TARGET_ARCH in
-        "x86_64-windows-gnu"|"aarch64-windows-gnu")
-            echo "Error: Windows cross-compilation is not yet fully supported"
-            echo "The assembly files (savectx.S, loadctx.S) need to be rewritten for Windows."
-            echo "Currently only Linux cross-compilation is fully supported."
-            echo ""
-            echo "Supported architectures: x86_64-linux-gnu, aarch64-linux-gnu"
-            exit 1
-            ;;
-        "x86_64-macos"|"aarch64-macos")
-            echo "Error: macOS cross-compilation is not yet fully supported"
-            echo "The assembly files (savectx.S, loadctx.S) need to be adapted for macOS cross-compilation."
-            echo "Currently only Linux cross-compilation is fully supported."
-            echo ""
-            echo "Supported architectures: x86_64-linux-gnu, aarch64-linux-gnu"
-            exit 1
+            CC_FLAGS="$CC_FLAGS -D_WIN64"
             ;;
     esac
     
@@ -99,15 +68,6 @@ if [[ $TARGET_ARCH != "" && $TARGET_ARCH != "all-arches" ]]; then
                 ;;
             "x86_64-windows-gnu")
                 echo "  brew install mingw-w64"
-                ;;
-            "aarch64-windows-gnu")
-                echo "  brew install mingw-w64"
-                ;;
-            "x86_64-macos")
-                echo "  brew install messense/macos-cross-toolchains/x86_64-apple-darwin"
-                ;;
-            "aarch64-macos")
-                echo "  brew install messense/macos-cross-toolchains/aarch64-apple-darwin"
                 ;;
         esac
         echo ""
@@ -170,7 +130,7 @@ SRC_FILES=$(echo $(find $SRC_DIR -type f -name "*.c") $(find src -type f -name "
 TEST_SRC_FILES=$(echo $(find $TEST_SRC_DIR -maxdepth 1 -type f -name "*.c" -print0 | sort -z -V | xargs -0))
 
 if [[ !($1 = "clean" || $1 = "test" || $1 = "release" || $1 = "") ]]; then
-        echo "Usage: ./$(basename $0) <clean|test|test release|release> [architecture|all-arches]"
+        echo "Usage: ./$(basename $0) <clean|test|test release|release> [architecture|all-targets]"
     echo "  Target architectures enable cross-compilation and QEMU execution"
     exit 1
 fi
@@ -322,12 +282,12 @@ function run_with_qemu {
 }
 
 
-# Handle all-arches case before building objects
-if [[ $TARGET_ARCH = "all-arches" && $1 = "test" ]]; then
+# Handle all-targets case before building objects
+if [[ $TARGET_ARCH = "all-targets" && $1 = "test" ]]; then
     echo "Running tests for all supported cross-compilation targets..."
     echo ""
     
-        ARCHES=("x86_64-linux-gnu" "aarch64-linux-gnu")
+        ARCHES=("x86_64-linux-gnu" "aarch64-linux-gnu" "x86_64-windows-gnu")
     OVERALL_SUCCESS=0
     OVERALL_FAILED=0
     
@@ -349,18 +309,7 @@ if [[ $TARGET_ARCH = "all-arches" && $1 = "test" ]]; then
                 "x86_64-windows-gnu")
                     CC=x86_64-w64-mingw32-gcc
                     QEMU_TARGET=""
-                    ;;
-                "aarch64-windows-gnu")
-                    CC=aarch64-w64-mingw32-gcc
-                    QEMU_TARGET=""
-                    ;;
-                "x86_64-macos")
-                    CC=x86_64-apple-darwin-gcc
-                    QEMU_TARGET=""
-                    ;;
-                "aarch64-macos")
-                    CC=aarch64-apple-darwin-gcc
-                    QEMU_TARGET=""
+                    CC_FLAGS="$CC_FLAGS -D_WIN64"
                     ;;
             esac
         

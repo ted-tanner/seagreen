@@ -1,4 +1,4 @@
-#if defined(_WIN64) || defined(__APPLE__)
+#if defined(__APPLE__)
 #define __CGN_LOADCTX_SYMBOL ___cgn_loadctx
 #define __CGN_JUMPWITHSTACK_SYMBOL ___cgn_jumpwithstack
 #else
@@ -56,7 +56,7 @@ __CGN_LOADCTX_SYMBOL_ret_stub:
 __CGN_LOADCTX_SYMBOL:
     movq 0(%rcx), %rsp
 
-    leaq -__CGN_CTX_SAVE_SIZE(%rsp), %r10
+    leaq -__CGN_CTX_SAVE_SIZE-128(%rsp), %r10
 
     movq 0(%r10), %rbp
     movq 8(%r10), %r11

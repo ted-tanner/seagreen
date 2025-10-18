@@ -1,9 +1,11 @@
-#if defined(_WIN64) || defined(__APPLE__)
+#if defined(__APPLE__)
 #define __CGN_SAVECTX_SYMBOL ___cgn_savectx
 #define __CGN_SAVENEWCTX_SYMBOL ___cgn_savenewctx
+#define __CGN_THREAD_ENTRY_SYMBOL ___cgn_thread_entry
 #else
 #define __CGN_SAVECTX_SYMBOL __cgn_savectx
 #define __CGN_SAVENEWCTX_SYMBOL __cgn_savenewctx
+#define __CGN_THREAD_ENTRY_SYMBOL __cgn_thread_entry
 #endif
 
 #include "../include/_seagreen_ctx.h"
@@ -82,7 +84,7 @@ __CGN_SAVENEWCTX_SYMBOL:
 __CGN_SAVECTX_SYMBOL:
     movq %rsp, 0(%rcx)
 
-    leaq -__CGN_CTX_SAVE_SIZE(%rsp), %r10
+    leaq -__CGN_CTX_SAVE_SIZE-128(%rsp), %r10
 
     movq 8(%rsp), %rax
     movq %rbp, 0(%r10)
@@ -116,7 +118,7 @@ __CGN_SAVENEWCTX_SYMBOL:
     // RCX = thread*, RDX = stack
     movq %rdx, 0(%rcx)
 
-    leaq -__CGN_CTX_SAVE_SIZE(%rdx), %r10
+    leaq -__CGN_CTX_SAVE_SIZE-128(%rdx), %r10
 
     movq $0, 0(%r10)
     leaq __cgn_thread_entry(%rip), %r11
