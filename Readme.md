@@ -1,6 +1,6 @@
 ![SeaGreen Pirate Ship Icon](/seagreen-pirate-ship-icon.svg)
 
-# SeaGreen (libseagreen) - `async_run`/`await` for C
+# SeaGreen (libseagreen) - async/await for C
 
 An easy-to-use green threading library ~~for Sea~~ for C.
 
