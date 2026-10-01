@@ -206,23 +206,3 @@ shadow space. Context switches preserve the ABI's nonvolatile registers and
 floating-point control state.
 
 If you would like to add support for another target, please submit a PR! We'd love to support as many targets as possible. Adding support for a target must not break or affect the performance of an already-supported target.
-
-## TODO
-
-* Add a section on building
-* Thoughts on current segfault problem in test #2
-  - The segfault is happening in async_yield() right after we loadctx and return program flow back to async_yield() and then try to assign to a stack variable. The segfault is a stack problem.
-  - The stack we are restoring to is the main thread stack that was saved in `await()`. However, `loadctx()` is taking us to `async_yield()` (where there is another call to `savectx()`). The stack for the main thread will not have the vars needed for `async_yield()`
-* Add a test that checks `await()`ing a thread from inside another thread being `await()`ed
-* In `1-basic-usage.c`, there is a list of things that should be tested
-* See if AI can think of more tests that should be added
-* Documentation
-* Ready/waiting state bits and the yield toggle into a single 64-bit word with bitfields
-* Can we make it so the functions can return data of arbitrary size (rather than the current 8-byte return values)?
-* After same stack is used for a new thread 128 times, mmap and munmap (or VirtualAlloc with MEM_RESET)
-* If a thread took longer than 25 microseconds to execute, skip scheduling for the next *n* iterations, where *n* = min(1 + floor(microseconds / 64), 5)
-* Use stdint types in macros rather than int/long/short/etc
-* Multithreaded scheduler (in a separate header).
-  - Linked list for threads that is synchronized using something similar to Linux's RCU.
-  - Blocking thread pool for making synchronous functions async (sort of)
-* Test on multiple different architectures and operating systems
