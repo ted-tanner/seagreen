@@ -6,12 +6,167 @@ An easy-to-use green threading library ~~for Sea~~ for C.
 
 ## How does SeaGreen work? Why use SeaGreen?
 
-SeaGreen uses [coroutines](https://en.wikipedia.org/wiki/Coroutine) to change program flow in an intuitive way that allows blocking tasks (such as disk or network IO) to be performed asynchronously on a single OS thread. A simple and efficient scheduler manages "green threads"--lightweight subroutines that execute concurrently on a single OS thread. The performance and memory cost of managing and switching between green threads is orders of magnitude smaller than the penalty that is paid to have the OS manage those threads.
+SeaGreen uses stackful [coroutines](https://en.wikipedia.org/wiki/Coroutine) to change program flow in an intuitive way that allows blocking tasks (such as disk or network IO) to be performed asynchronously on a single OS thread. A simple and efficient scheduler manages "green threads"--lightweight subroutines that execute concurrently on a single OS thread. The performance and memory cost of managing and switching between green threads is orders of magnitude smaller than the penalty that is paid to have the OS manage those threads.
 
 Some niceties of SeaGreen:
 
 * No [function coloring](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/) difficulties. Green threads may be launched from anywhere in your program, making it super easy to integrate libseagreen into existing codebases.
 * SeaGreen is intuitive to use and won't turn your existing code into spaghetti.
+
+## Examples
+
+### Context switching on a single OS thread
+
+```c
+#include "seagreen.h"
+#include <inttypes.h>
+#include <stdio.h>
+
+typedef struct { uint64_t a, b; } foo_args;
+
+uint64_t foo(void *arg) {
+    foo_args *args = arg;
+    printf("foo() started\n");
+    async_yield();
+    printf("foo() finished\n");
+    return args->a + args->b;
+}
+
+uint64_t bar(void *arg) {
+    uint64_t *a = arg;
+    printf("bar() started\n");
+    async_yield();
+    printf("bar() finished\n");
+    return *a + 2;
+}
+
+int main(void) {
+    seagreen_init_rt();
+
+    foo_args args = {1, 2};
+    uint64_t a = 3;
+    CGNThreadHandle t1 = async_run(foo, &args);
+    CGNThreadHandle t2 = async_run(bar, &a);
+
+    uint64_t foo_result = await(t1);
+    uint64_t bar_result = await(t2);
+    printf("foo() returned %" PRIu64 "\n", foo_result); // 3
+    printf("bar() returned %" PRIu64 "\n", bar_result); // 5
+
+    seagreen_free_rt();
+    return 0;
+}
+```
+
+Output:
+
+```text
+foo() started
+bar() started
+foo() finished
+bar() finished
+foo() returned 3
+bar() returned 5
+```
+
+### Handle IO without blocking on a single OS thread
+
+```c
+#include "seagreen.h"
+#include "your_io.h"
+#include <stdio.h>
+
+uint64_t handle_io(void *arg) {
+    (void)arg;
+    begin_io();
+    while (io_result() != IO_DONE) {
+        async_yield(); // Let other tasks run while the I/O is pending
+    }
+    return 0;
+}
+
+uint64_t other_work(void *arg) {
+    (void)arg;
+    printf("Doing other work while I/O is pending\n");
+    return 0;
+}
+
+int main(void) {
+    seagreen_init_rt();
+
+    CGNThreadHandle io = async_run(handle_io, NULL);
+    CGNThreadHandle work = async_run(other_work, NULL);
+    await(io);
+    await(work);
+    printf("I/O completed\n");
+
+    seagreen_free_rt();
+    return 0;
+}
+```
+
+### Green threads across multiple OS threads with pthreads
+
+```c
+#include "seagreen.h"
+#include <inttypes.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct { uint64_t input, result; } worker_args;
+
+uint64_t square(void *arg) {
+    uint64_t n = *(uint64_t *)arg;
+    async_yield();
+    return n * n;
+}
+
+void *run_worker(void *arg) {
+    worker_args *args = arg;
+    seagreen_init_rt();
+
+    uint64_t numbers[] = {args->input, args->input + 1};
+    CGNThreadHandle first = async_run(square, &numbers[0]);
+    CGNThreadHandle second = async_run(square, &numbers[1]);
+    uint64_t a = await(first);
+    uint64_t b = await(second);
+    args->result = a + b;
+
+    seagreen_free_rt();
+    return NULL;
+}
+
+int main(void) {
+    pthread_t threads[2];
+    worker_args args[] = {{3, 0}, {5, 0}};
+
+    for (unsigned i = 0; i < 2; ++i) {
+        int error = pthread_create(&threads[i], NULL, run_worker, &args[i]);
+        if (error) {
+            fprintf(stderr, "pthread_create: %s\n", strerror(error));
+            exit(EXIT_FAILURE);
+        }
+    }
+    for (unsigned i = 0; i < 2; ++i) {
+        int error = pthread_join(threads[i], NULL);
+        if (error) {
+            fprintf(stderr, "pthread_join: %s\n", strerror(error));
+            exit(EXIT_FAILURE);
+        }
+        printf("Worker %u returned %" PRIu64 "\n", i + 1, args[i].result);
+    }
+    return 0;
+}
+```
+
+Output:
+
+```text
+Worker 1 returned 25
+Worker 2 returned 61
+```
 
 ## The SeaGreen Pirate's Code (invariants/rules for using the library)
 
@@ -26,6 +181,7 @@ Some niceties of SeaGreen:
 * Be mindful o' the lifetime o' function arguments passed to `async_run()`. If ye `await()` in the same function, stack allocation be fine. But if ye save the handles and `await()` them elsewhere, they should be in a buffer whose lifetime be at least as long as the threads'.
 
 If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault parrot or worse, cause undefined behavior on yon C.
+
 ## Running Tests
 
 Run `./build.sh test` for the native suite, or `./build.sh test release` for
@@ -53,7 +209,6 @@ If you would like to add support for another target, please submit a PR! We'd lo
 
 ## TODO
 
-* Improve readme with examples upfront. Focus on marketability upfront and then documentation later on.
 * Add a section on building
 * Thoughts on current segfault problem in test #2
   - The segfault is happening in async_yield() right after we loadctx and return program flow back to async_yield() and then try to assign to a stack variable. The segfault is a stack problem.
