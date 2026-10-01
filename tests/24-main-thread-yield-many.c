@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -13,7 +14,7 @@ typedef struct {
     int expected_result;
 } main_yield_args;
 
-async uint64_t worker_func(void *p) {
+uint64_t worker_func(void *p) {
     main_yield_args *args = (main_yield_args *)p;
     
     printf("Worker %d starting (work duration: %d)\n", args->thread_id, args->work_duration);
@@ -54,7 +55,7 @@ int main(void) {
     
     for (int i = 0; i < 10; i++) {
         uint64_t result = await(handles[i]);
-        printf("Many threads %d result: %llu (expected: %d)\n", i, result, args[i].expected_result);
+        printf("Many threads %d result: %" PRIu64 " (expected: %d)\n", i, result, args[i].expected_result);
         assert(result == (uint64_t)args[i].expected_result);
     }
     

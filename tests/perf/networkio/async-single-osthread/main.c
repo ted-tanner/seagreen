@@ -11,7 +11,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
-#include <sys/select.h>
+#include <poll.h>
 
 #include "seagreen.h"
 
@@ -19,7 +19,7 @@
 
 typedef struct { int request_id; } http_request_args;
 
-async uint64_t make_http_request_async(void *p) {
+uint64_t make_http_request_async(void *p) {
     http_request_args *args = (http_request_args *)p;
     int request_id = args->request_id;
     
@@ -73,13 +73,16 @@ async uint64_t make_http_request_async(void *p) {
     
     // Wait for connection to complete
     if (connect_result == -1) {
-        fd_set write_fds;
-        FD_ZERO(&write_fds);
-        FD_SET(sockfd, &write_fds);
+        struct pollfd connection = {.fd = sockfd, .events = POLLOUT};
         
         while (1) {
-            int select_result = select(sockfd + 1, NULL, &write_fds, NULL, NULL);
-            if (select_result > 0) {
+            int poll_result = poll(&connection, 1, 0);
+            if (poll_result > 0) {
+                if (connection.revents & POLLNVAL) {
+                    fprintf(stderr, "poll: invalid socket descriptor\n");
+                    close(sockfd);
+                    return -1;
+                }
                 int error = 0;
                 socklen_t error_len = sizeof(error);
                 if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &error, &error_len) == 0 && error == 0) {
@@ -89,8 +92,8 @@ async uint64_t make_http_request_async(void *p) {
                     close(sockfd);
                     return -1;
                 }
-            } else if (select_result == -1) {
-                perror("select");
+            } else if (poll_result == -1 && errno != EINTR) {
+                perror("poll");
                 close(sockfd);
                 return -1;
             }
@@ -150,6 +153,10 @@ int main(void) {
         (CGNThreadHandle *)malloc(REQUEST_COUNT * sizeof(CGNThreadHandle));
     http_request_args *args_array =
         (http_request_args *)malloc(REQUEST_COUNT * sizeof(http_request_args));
+    if (!handles || !args_array) {
+        fprintf(stderr, "Failed to allocate request handles or arguments\n");
+        exit(EXIT_FAILURE);
+    }
 
     struct timespec start, end;
     clock_gettime(CLOCK_REALTIME, &start);

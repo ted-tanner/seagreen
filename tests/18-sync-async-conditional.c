@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -10,7 +11,7 @@ typedef struct {
     int level;
 } sync_async_args;
 
-async uint64_t simple_worker_func(void *p) {
+uint64_t simple_worker_func(void *p) {
     sync_async_args *args = (sync_async_args *)p;
     
     printf("  Worker func called with value %d at level %d\n", args->value, args->level);
@@ -54,7 +55,7 @@ int main(void) {
     for (int i = 0; i < 6; i++) {
         sync_async_args args3 = {i, 0, 0};
         uint64_t result3 = sync_function_conditional_async(&args3);
-        printf("Sync->conditional async result for %d: %llu\n", i, result3);
+        printf("Sync->conditional async result for %d: %" PRIu64 "\n", i, result3);
         
         if (i % 2 == 0) {
             assert(result3 == (uint64_t)(i * 2));

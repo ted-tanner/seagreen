@@ -15,7 +15,7 @@
 #define LOREM_IPSUM_COUNT 10000
 
 typedef struct { struct aiocb *aio; } write_file_args;
-async uint64_t write_file(void *p) {
+uint64_t write_file(void *p) {
     write_file_args *args = (write_file_args *)p;
     struct aiocb *aio = args->aio;
     
@@ -46,6 +46,10 @@ officia deserunt mollit anim id est laborum.";
 
     size_t data_buf_len = data_len * LOREM_IPSUM_COUNT + 1; // add 1 for null terminator
     char *data_buf = (char *)malloc(data_buf_len);
+    if (!data_buf) {
+        fprintf(stderr, "Failed to allocate file data buffer\n");
+        exit(EXIT_FAILURE);
+    }
 
     for (int i = 0; i < LOREM_IPSUM_COUNT; ++i) {
         sprintf(data_buf + data_len * i, "%s\n\n", lorem_ipsum);
@@ -53,6 +57,10 @@ officia deserunt mollit anim id est laborum.";
 
     struct aiocb *aio_list =
         (struct aiocb *)malloc(FILE_COUNT * sizeof(struct aiocb));
+    if (!aio_list) {
+        fprintf(stderr, "Failed to allocate asynchronous I/O control blocks\n");
+        exit(EXIT_FAILURE);
+    }
 
     for (int i = 0; i < FILE_COUNT; ++i) {
         sprintf(file_name, "./out/file-%d.txt", i + 1000);
@@ -80,6 +88,10 @@ officia deserunt mollit anim id est laborum.";
         (CGNThreadHandle *)malloc(FILE_COUNT * sizeof(CGNThreadHandle));
     write_file_args *args_array =
         (write_file_args *)malloc(FILE_COUNT * sizeof(write_file_args));
+    if (!handles || !args_array) {
+        fprintf(stderr, "Failed to allocate file handles or arguments\n");
+        exit(EXIT_FAILURE);
+    }
 
     printf("Initializing SeaGreen runtime...\n");
     seagreen_init_rt();

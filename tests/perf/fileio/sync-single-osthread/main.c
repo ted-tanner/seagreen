@@ -29,12 +29,20 @@ officia deserunt mollit anim id est laborum.";
 
     size_t data_buf_len = data_len * LOREM_IPSUM_COUNT + 1; // add 1 for null terminator
     char *data_buf = (char *)malloc(data_buf_len);
+    if (!data_buf) {
+        fprintf(stderr, "Failed to allocate file data buffer\n");
+        exit(EXIT_FAILURE);
+    }
 
     for (int i = 0; i < LOREM_IPSUM_COUNT; ++i) {
         sprintf(data_buf + data_len * i, "%s\n\n", lorem_ipsum);
     }
 
     FILE **file_list =(FILE **)malloc(FILE_COUNT * sizeof(FILE *));
+    if (!file_list) {
+        fprintf(stderr, "Failed to allocate file list\n");
+        exit(EXIT_FAILURE);
+    }
 
     for (int i = 0; i < FILE_COUNT; ++i) {
         sprintf(file_name, "./out/file-%d.txt", i + 1000);

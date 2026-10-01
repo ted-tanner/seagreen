@@ -17,7 +17,7 @@ typedef struct {
     int expected_yields;
 } thread_data;
 
-async uint64_t stack_validation_thread(void *p) {
+uint64_t stack_validation_thread(void *p) {
     thread_data *data = (thread_data *)p;
     int thread_id = data->thread_id;
 

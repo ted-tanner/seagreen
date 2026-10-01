@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -10,7 +11,7 @@ typedef struct {
     int level;
 } sync_async_args;
 
-async uint64_t simple_worker_func(void *p) {
+uint64_t simple_worker_func(void *p) {
     sync_async_args *args = (sync_async_args *)p;
     
     printf("  Worker func called with value %d at level %d\n", args->value, args->level);
@@ -39,7 +40,7 @@ uint64_t sync_function_calling_multiple_async(void *p) {
         total += result;
     }
     
-    printf("Sync function got total result %llu from multiple async calls\n", total);
+    printf("Sync function got total result %" PRIu64 " from multiple async calls\n", total);
     
     return total + args->value;
 }
@@ -53,7 +54,7 @@ int main(void) {
     printf("\n=== Test: Sync function calling multiple async functions ===\n");
     sync_async_args args2 = {5, 0, 0};
     uint64_t result2 = sync_function_calling_multiple_async(&args2);
-    printf("Sync->multiple async result: %llu (expected: 41)\n", result2);
+    printf("Sync->multiple async result: %" PRIu64 " (expected: 41)\n", result2);
     assert(result2 == 41);
     
     seagreen_free_rt();

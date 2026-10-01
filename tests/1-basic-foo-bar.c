@@ -4,7 +4,7 @@
 #include "seagreen.h"
 
 typedef struct { int a; int b; int id; } foo_args;
-async uint64_t foo(void *p) {
+uint64_t foo(void *p) {
     foo_args *args = (foo_args *)p;
     int a = args->a;
     int b = args->b;
@@ -22,7 +22,7 @@ async uint64_t foo(void *p) {
 }
 
 typedef struct { int a; int id; } bar_args;
-async uint64_t bar(void *p) {
+uint64_t bar(void *p) {
     bar_args *args = (bar_args *)p;
     int a = args->a;
     

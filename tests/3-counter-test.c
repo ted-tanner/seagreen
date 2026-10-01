@@ -4,7 +4,7 @@
 #include "seagreen.h"
 
 static int counter = 0;
-async uint64_t increment_counter(void *p) {
+uint64_t increment_counter(void *p) {
     (void)p;
     async_yield();
     ++counter;

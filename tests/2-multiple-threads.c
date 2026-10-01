@@ -10,7 +10,7 @@
 static _Bool running_func[THREAD_COUNT] = {0};
 
 typedef struct { int id; } foo_args;
-async uint64_t foo(void *p) {
+uint64_t foo(void *p) {
     foo_args *args = (foo_args *)p;
     int id = args->id;
     

@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -13,7 +14,7 @@ typedef struct {
     int expected_result;
 } main_yield_args;
 
-async uint64_t worker_func(void *p) {
+uint64_t worker_func(void *p) {
     main_yield_args *args = (main_yield_args *)p;
     
     printf("Worker %d starting (work duration: %d)\n", args->thread_id, args->work_duration);
@@ -27,7 +28,7 @@ async uint64_t worker_func(void *p) {
     return args->expected_result;
 }
 
-async uint64_t quick_worker_func(void *p) {
+uint64_t quick_worker_func(void *p) {
     main_yield_args *args = (main_yield_args *)p;
     
     printf("Quick worker %d starting\n", args->thread_id);
@@ -39,7 +40,7 @@ async uint64_t quick_worker_func(void *p) {
     return args->expected_result;
 }
 
-async uint64_t slow_worker_func(void *p) {
+uint64_t slow_worker_func(void *p) {
     main_yield_args *args = (main_yield_args *)p;
     
     printf("Slow worker %d starting\n", args->thread_id);
@@ -93,7 +94,7 @@ int main(void) {
     uint64_t results[5];
     for (int i = 0; i < 5; i++) {
         results[i] = await(handles[i]);
-        printf("Thread %d result: %llu (expected: %d)\n", i, results[i], args[i].expected_result);
+        printf("Thread %d result: %" PRIu64 " (expected: %d)\n", i, results[i], args[i].expected_result);
         assert(results[i] == (uint64_t)args[i].expected_result);
     }
     

@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,7 +12,7 @@ typedef struct {
     int expected_result;
 } nested_args;
 
-async uint64_t simple_async_func(void *p) {
+uint64_t simple_async_func(void *p) {
     nested_args *args = (nested_args *)p;
     
     printf("  Simple async func called with value %d at level %d\n", args->value, args->level);
@@ -21,7 +22,7 @@ async uint64_t simple_async_func(void *p) {
     return args->value * 2;
 }
 
-async uint64_t loop_nested_async_func(void *p) {
+uint64_t loop_nested_async_func(void *p) {
     nested_args *args = (nested_args *)p;
     
     printf("Loop-nested async func level %d with value %d\n", args->level, args->value);
@@ -50,7 +51,7 @@ int main(void) {
     nested_args args4 = {0, 2, 5, 0};
     CGNThreadHandle handle4 = async_run(loop_nested_async_func, &args4);
     uint64_t result4 = await(handle4);
-    printf("Loop-nested async result: %llu (expected: 70)\n", result4);
+    printf("Loop-nested async result: %" PRIu64 " (expected: 70)\n", result4);
     assert(result4 == 70);
     
     seagreen_free_rt();

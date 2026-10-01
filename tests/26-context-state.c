@@ -126,7 +126,7 @@ static void check_new_context_vectors(void) {
 }
 #endif
 
-static async uint64_t worker(void *arg) {
+static uint64_t worker(void *arg) {
     fp_state expected = *(fp_state *)arg;
     check_fp(expected); // A new context inherits its creator's control state.
     for (unsigned i = 0; i < 100; ++i) {

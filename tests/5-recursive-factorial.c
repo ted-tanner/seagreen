@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,7 +12,7 @@ typedef struct {
     uint64_t expected_result;
 } recursive_args;
 
-async uint64_t factorial_recursive(void *p) {
+uint64_t factorial_recursive(void *p) {
     recursive_args *args = (recursive_args *)p;
     int n = args->depth;
     
@@ -50,7 +51,7 @@ int main(void) {
         CGNThreadHandle handle = async_run(factorial_recursive, &args);
         uint64_t result = await(handle);
         
-        printf("Factorial(%d) = %llu (expected %llu)\n", n, result, expected);
+        printf("Factorial(%d) = %" PRIu64 " (expected %" PRIu64 ")\n", n, result, expected);
         assert(result == expected);
     }
     

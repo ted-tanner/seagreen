@@ -1,6 +1,6 @@
 ![SeaGreen Pirate Ship Icon](/seagreen-pirate-ship-icon.svg)
 
-# SeaGreen (libseagreen) - `async`/`await` for C
+# SeaGreen (libseagreen) - `async_run`/`await` for C
 
 An easy-to-use green threading library ~~for Sea~~ for C.
 
@@ -15,14 +15,22 @@ Some niceties of SeaGreen:
 
 ## The SeaGreen Pirate's Code (invariants/rules for using the library)
 
-* If ye call `async_yield()` in a function, ye mus' mark tha' function as `async` and call it only using `async_run()` or ye shall walk the plank.
 * If ye call `async_run()`, `await()`, or `async_yield()` without firs' callin' `seagreen_init_rt()` or after callin' `seagreen_free_rt()`, ye shall walk the plank.
-* Functions called with `async_run()` may only return values that are 8 bytes (or more wee).
+* Each OS thread mus' initialize its own runtime. Use a handle only on the OS thread and within the runtime instance that created it or ye shall walk the plank.
+* Callbacks passed to `async_run()` mus' have the signature `uint64_t function(void *arg)`; do not cast incompatible function pointers. Ye never know what may happen if ye do.
+* Never await yer own handle or create circular waits between threads. Awaiting yourself, or reaching a state where no thread can run, will sink yer ship.
 * If ye call `seagreen_free_rt()` from inside a green thread (not on the main thread where `seagreen_init_rt()` was called), ye shall be ignored.
+* Scheduling be cooperative: a task mus' yield, await, or return for another task to run. Otherwise, ye be foulin' the riggin’.
+* Careful with recursion. If ye use deep recursion, ye be stirrin’ up rough seas. If yon stack grow too big, ye may be thrust overboard.
 * If ye use SeaGreen expectin' it to not to allocate memory, ye shall walk the plank.
 * Be mindful o' the lifetime o' function arguments passed to `async_run()`. If ye `await()` in the same function, stack allocation be fine. But if ye save the handles and `await()` them elsewhere, they should be in a buffer whose lifetime be at least as long as the threads'.
 
 If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault parrot or worse, cause undefined behavior on yon C.
+## Running Tests
+
+Run `./build.sh test` for the native suite, or `./build.sh test release` for
+optimized tests. Select a test by number or filename, for example
+`./build.sh test 27` or `./build.sh test 27-multiple-waiters.c`.
 
 ## Architecture and System Support
 
@@ -45,8 +53,6 @@ If you would like to add support for another target, please submit a PR! We'd lo
 
 ## TODO
 
-* Add more invariants to the Pirates code:
-  - No awaiting a handle twice
 * Improve readme with examples upfront. Focus on marketability upfront and then documentation later on.
 * Add a section on building
 * Thoughts on current segfault problem in test #2

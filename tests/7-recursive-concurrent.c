@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,7 +12,7 @@ typedef struct {
     uint64_t expected_result;
 } recursive_args;
 
-async uint64_t fibonacci_recursive(void *p) {
+uint64_t fibonacci_recursive(void *p) {
     recursive_args *args = (recursive_args *)p;
     int n = args->depth;
     
@@ -55,7 +56,7 @@ int main(void) {
     for (int i = 0; i < 5; i++) {
         uint64_t result = await(concurrent_handles[i]);
         uint64_t expected = expected_fibonacci(i + 3);
-        printf("Concurrent Fibonacci(%d) = %llu (expected %llu)\n", i + 3, result, expected);
+        printf("Concurrent Fibonacci(%d) = %" PRIu64 " (expected %" PRIu64 ")\n", i + 3, result, expected);
         assert(result == expected);
     }
     

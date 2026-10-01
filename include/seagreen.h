@@ -182,8 +182,9 @@ typedef struct __CGNThread_ {
     void *arg;
 
     uint32_t id;
-    uint32_t awaited_thread_id;
-    uint32_t awaiting_thread_count;
+    uint32_t generation;
+    uint64_t awaited_handle;
+    uint32_t awaiting_thread_count; // Registered waiters that have not consumed the result.
 
     __CGNThreadState state;
     
@@ -205,6 +206,7 @@ typedef struct __CGNThreadBlock_ {
     void *stacks;
 
     uint64_t in_use_mask[__CGN_THREAD_IN_USE_CHUNK_COUNT];
+    uint64_t retired_mask[__CGN_THREAD_IN_USE_CHUNK_COUNT];
     uint16_t used_thread_count;
 } __CGNThreadBlock;
 
@@ -230,13 +232,7 @@ extern __attribute__((noinline, returns_twice)) _Bool __cgn_savenewctx(__CGNThre
 
 __attribute__((noreturn)) void __cgn_thread_entry(void);
 
-// mmap returns -1 on error, check ptr < 1 rather than !ptr
-#define __cgn_check_malloc(ptr)                         \
-    if ((void *)ptr < (void *)1) {                      \
-        fprintf(stderr, "seagreen: memory allocation failure\n"); \
-        abort();                                        \
-    }
-
+// Low 32 bits: slot ID; high 32 bits: generation. Treat handles as opaque.
 typedef uint64_t CGNThreadHandle;
 
 // The stack space allocated for each thread. Many of these pages will remain
@@ -249,8 +245,6 @@ __CGN_EXPORT void seagreen_free_rt(void);
 __CGN_EXPORT void async_yield(void);
 __CGN_EXPORT uint64_t await(CGNThreadHandle handle);
 __CGN_EXPORT CGNThreadHandle async_run(__CGNAsyncFn fn, void *arg);
-
-#define async __attribute__((noinline))
 
 extern _Thread_local int __cgn_pagesize;
 extern _Thread_local __CGNThread *volatile __cgn_curr_thread;

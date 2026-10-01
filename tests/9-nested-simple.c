@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,7 +12,7 @@ typedef struct {
     int expected_result;
 } nested_args;
 
-async uint64_t simple_async_func(void *p) {
+uint64_t simple_async_func(void *p) {
     nested_args *args = (nested_args *)p;
     
     printf("  Simple async func called with value %d at level %d\n", args->value, args->level);
@@ -21,7 +22,7 @@ async uint64_t simple_async_func(void *p) {
     return args->value * 2;
 }
 
-async uint64_t nested_async_func(void *p) {
+uint64_t nested_async_func(void *p) {
     nested_args *args = (nested_args *)p;
     
     printf("Nested async func level %d with value %d\n", args->level, args->value);
@@ -59,7 +60,7 @@ int main(void) {
     nested_args args1 = {0, 1, 10, 20};
     CGNThreadHandle handle1 = async_run(nested_async_func, &args1);
     uint64_t result1 = await(handle1);
-    printf("Simple nested async result: %llu\n", result1);
+    printf("Simple nested async result: %" PRIu64 "\n", result1);
     assert(result1 == 43);
     
     printf("Testing deep nested async calls...\n");
@@ -67,7 +68,7 @@ int main(void) {
     nested_args args2 = {0, 3, 5, 0};
     CGNThreadHandle handle2 = async_run(nested_async_func, &args2);
     uint64_t result2 = await(handle2);
-    printf("Deep nested async result: %llu\n", result2);
+    printf("Deep nested async result: %" PRIu64 "\n", result2);
     assert(result2 == 42);
     
     seagreen_free_rt();

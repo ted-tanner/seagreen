@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -105,7 +106,7 @@ void init_large_struct(LargeStruct *s, int base_value) {
     s->final_char = (char)('Z' - (base_value % 26));
 }
 
-async uint64_t process_large_struct(void *p) {
+uint64_t process_large_struct(void *p) {
     LargeStruct *s = (LargeStruct *)p;
     
     printf("Processing large struct with base value %d\n", s->i32 - 3);
@@ -134,7 +135,7 @@ async uint64_t process_large_struct(void *p) {
     sum += s->long_val + s->ulong_val + s->short_val + s->ushort_val;
     sum += s->final_int + (uint64_t)s->final_double + s->final_char;
     
-    printf("Large struct processed, sum: %llu\n", sum);
+    printf("Large struct processed, sum: %" PRIu64 "\n", sum);
     
     return sum;
 }
@@ -159,11 +160,11 @@ int main(void) {
     
     for (int i = 0; i < 5; i++) {
         results[i] = await(handles[i]);
-        printf("Struct %d result: %llu\n", i, results[i]);
+        printf("Struct %d result: %" PRIu64 "\n", i, results[i]);
         total_sum += results[i];
     }
     
-    printf("Total sum from multiple structs: %llu\n", total_sum);
+    printf("Total sum from multiple structs: %" PRIu64 "\n", total_sum);
     assert(total_sum > 0);
     
     seagreen_free_rt();

@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,7 +12,7 @@ typedef struct {
     uint64_t expected_result;
 } recursive_args;
 
-async uint64_t lightweight_recursive(void *p) {
+uint64_t lightweight_recursive(void *p) {
     recursive_args *args = (recursive_args *)p;
     
     if (args->current_depth >= args->max_depth) {
@@ -51,7 +52,7 @@ int main(void) {
         CGNThreadHandle handle = async_run(lightweight_recursive, &args);
         uint64_t result = await(handle);
         
-        printf("Lightweight recursive (depth %d) = %llu\n", max_depth, result);
+        printf("Lightweight recursive (depth %d) = %" PRIu64 "\n", max_depth, result);
         assert(result == max_depth);
     }
     
@@ -69,7 +70,7 @@ int main(void) {
     for (int i = 0; i < num_lightweight_concurrent; i++) {
         uint64_t result = await(lightweight_handles[i]);
         uint64_t expected = 30 + (i % 20);
-        printf("Concurrent lightweight recursive %d = %llu (expected %llu)\n", i, result, expected);
+        printf("Concurrent lightweight recursive %d = %" PRIu64 " (expected %" PRIu64 ")\n", i, result, expected);
         assert(result == expected);
     }
     
@@ -85,7 +86,7 @@ int main(void) {
         CGNThreadHandle handle = async_run(lightweight_recursive, &args);
         uint64_t result = await(handle);
         
-        printf("Stress test (depth %d) = %llu\n", max_depth, result);
+        printf("Stress test (depth %d) = %" PRIu64 "\n", max_depth, result);
         assert(result == max_depth);
     }
     

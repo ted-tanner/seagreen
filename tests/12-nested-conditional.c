@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,7 +12,7 @@ typedef struct {
     int expected_result;
 } nested_args;
 
-async uint64_t simple_async_func(void *p) {
+uint64_t simple_async_func(void *p) {
     nested_args *args = (nested_args *)p;
     
     printf("  Simple async func called with value %d at level %d\n", args->value, args->level);
@@ -21,7 +22,7 @@ async uint64_t simple_async_func(void *p) {
     return args->value * 2;
 }
 
-async uint64_t nested_async_func(void *p) {
+uint64_t nested_async_func(void *p) {
     nested_args *args = (nested_args *)p;
     
     printf("Nested async func level %d with value %d\n", args->level, args->value);
@@ -50,7 +51,7 @@ async uint64_t nested_async_func(void *p) {
     return nested_result + args->value;
 }
 
-async uint64_t conditional_nested_async_func(void *p) {
+uint64_t conditional_nested_async_func(void *p) {
     nested_args *args = (nested_args *)p;
     
     printf("Conditional-nested async func level %d with value %d\n", args->level, args->value);
@@ -78,7 +79,7 @@ int main(void) {
         nested_args args5 = {0, 2, i, 0};
         CGNThreadHandle handle5 = async_run(conditional_nested_async_func, &args5);
         uint64_t result5 = await(handle5);
-        printf("Conditional nested async result for %d: %llu\n", i, result5);
+        printf("Conditional nested async result for %d: %" PRIu64 "\n", i, result5);
         
         if (i % 2 == 0) {
             assert(result5 == (uint64_t)(i * 2));

@@ -1,4 +1,5 @@
 #include "seagreen.h"
+#include <inttypes.h>
 
 
 _Thread_local int __cgn_pagesize = 0;
@@ -21,6 +22,11 @@ _Thread_local uint64_t __cgn_scheduler_call_count = 0;
 #define CGN_DBG(...)
 #endif
 
+static __attribute__((noreturn)) void __cgn_fatal(const char *message) {
+    fprintf(stderr, "seagreen: %s\n", message);
+    abort();
+}
+
 static inline void __cgn_block_set_in_use(__CGNThreadBlock *block, uint32_t pos) {
     block->in_use_mask[pos / __CGN_IN_USE_CHUNK_SIZE] |= (uint64_t)1 << (pos % __CGN_IN_USE_CHUNK_SIZE);
 }
@@ -35,7 +41,7 @@ static inline _Bool __cgn_block_slot_in_use(const __CGNThreadBlock *block, uint3
 
 static inline int64_t __cgn_block_find_free_slot(const __CGNThreadBlock *block) {
     for (uint32_t chunk = 0; chunk < __CGN_THREAD_IN_USE_CHUNK_COUNT; ++chunk) {
-        uint64_t mask = block->in_use_mask[chunk];
+        uint64_t mask = block->in_use_mask[chunk] | block->retired_mask[chunk];
         if (mask == UINT64_MAX) {
             continue;
         }
@@ -124,16 +130,21 @@ static inline void __cgn_ready_queue_remove(__CGNThread *thread) {
         return;
     }
     
-    if (thread == __cgn_ready_queue.head) {
-        __cgn_ready_queue.head = thread->ready_next;
+    if (thread == __cgn_ready_queue.head && thread == __cgn_ready_queue.tail) {
+        __cgn_ready_queue.head = NULL;
+        __cgn_ready_queue.tail = NULL;
+    } else {
+        if (thread == __cgn_ready_queue.head) {
+            __cgn_ready_queue.head = thread->ready_next;
+        }
+        if (thread == __cgn_ready_queue.tail) {
+            __cgn_ready_queue.tail = thread->ready_prev;
+        }
+
+        thread->ready_prev->ready_next = thread->ready_next;
+        thread->ready_next->ready_prev = thread->ready_prev;
     }
-    if (thread == __cgn_ready_queue.tail) {
-        __cgn_ready_queue.tail = thread->ready_prev;
-    }
-    
-    thread->ready_prev->ready_next = thread->ready_next;
-    thread->ready_next->ready_prev = thread->ready_prev;
-    
+
     thread->ready_next = NULL;
     thread->ready_prev = NULL;
     __cgn_ready_queue.count--;
@@ -149,30 +160,36 @@ static __CGNThreadBlock *add_block(void) {
     // with mprotect().
     void *stacks =
         mmap(0, alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK | MAP_GROWSDOWN, -1, 0);
-    __cgn_check_malloc(stacks);
+    if (stacks == MAP_FAILED) __cgn_fatal("stack mapping failed");
 
     for (uint64_t i = 0; i < __CGN_THREAD_BLOCK_SIZE; ++i) {
         // Add __cgn_pagesize to offset to put guard page at end of stack, with the stack
         // growing downward
         uint64_t offset = (i * stack_plus_guard_size) + __cgn_pagesize;
-        mprotect((char *)stacks + offset, SEAGREEN_MAX_STACK_SIZE, PROT_READ | PROT_WRITE);
+        if (mprotect((char *)stacks + offset, SEAGREEN_MAX_STACK_SIZE,
+                     PROT_READ | PROT_WRITE) != 0) {
+            __cgn_fatal("stack protection failed");
+        }
     }
 #else
     void *stacks =
         VirtualAlloc(0, alloc_size, MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS);
-    __cgn_check_malloc(stacks);
+    if (stacks == NULL) __cgn_fatal("stack allocation failed");
 
     for (uint64_t i = 0; i < __CGN_THREAD_BLOCK_SIZE; ++i) {
         uint64_t offset = (i * stack_plus_guard_size) + __cgn_pagesize;
 
         DWORD _oldprot;
-        VirtualProtect((char *)stacks + offset, SEAGREEN_MAX_STACK_SIZE, PAGE_READWRITE, &_oldprot);
+        if (!VirtualProtect((char *)stacks + offset, SEAGREEN_MAX_STACK_SIZE,
+                            PAGE_READWRITE, &_oldprot)) {
+            __cgn_fatal("stack protection failed");
+        }
     }
 #endif
 
     __CGNThreadBlock *block =
         (__CGNThreadBlock *)calloc(1, sizeof(__CGNThreadBlock));
-    __cgn_check_malloc(block);
+    if (block == NULL) __cgn_fatal("thread block allocation failed");
 
     if (!__cgn_threadlist.tail) {
         __cgn_threadlist.head = block;
@@ -193,6 +210,7 @@ static inline __CGNThreadBlock *__cgn_get_block(uint32_t id) {
     __CGNThreadBlock *block;
 
     uint32_t block_pos = id / __CGN_THREAD_BLOCK_SIZE;
+    if (block_pos >= __cgn_threadlist.block_count) return NULL;
     if (block_pos > __cgn_threadlist.block_count / 2) {
         block = __cgn_threadlist.tail;
         for (uint32_t i = __cgn_threadlist.block_count - 1; i > block_pos;
@@ -205,9 +223,16 @@ static inline __CGNThreadBlock *__cgn_get_block(uint32_t id) {
     return block;
 }
 
-static inline __CGNThread *__cgn_get_thread(uint32_t id) {
+static inline __CGNThread *__cgn_get_thread(CGNThreadHandle handle) {
+    uint32_t id = (uint32_t)handle;
+    uint32_t generation = (uint32_t)(handle >> 32);
     __CGNThreadBlock *block = __cgn_get_block(id);
-    return &block->threads[id % __CGN_THREAD_BLOCK_SIZE];
+    uint32_t pos = id % __CGN_THREAD_BLOCK_SIZE;
+    if (!block || !generation || !__cgn_block_slot_in_use(block, pos) ||
+        block->threads[pos].generation != generation) {
+        __cgn_fatal("invalid or expired thread handle");
+    }
+    return &block->threads[pos];
 }
 
 static __attribute__((noinline, noreturn)) void __cgn_scheduler(void) {
@@ -241,11 +266,10 @@ static __attribute__((noinline, noreturn)) void __cgn_scheduler(void) {
                     __CGNThread *thread = &block->threads[thread_index];
 
                     if (thread->state == __CGN_THREAD_STATE_WAITING) {
-                        __CGNThread *awaited_thread = __cgn_get_thread(thread->awaited_thread_id);
+                        __CGNThread *awaited_thread = __cgn_get_thread(thread->awaited_handle);
                         if (awaited_thread->state == __CGN_THREAD_STATE_DONE) {
-                            awaited_thread->awaiting_thread_count--;
                             thread->state = __CGN_THREAD_STATE_READY;
-                            thread->awaited_thread_id = 0;
+                            thread->awaited_handle = 0;
                             __cgn_ready_queue_enqueue(thread);
                             
                             // Found a thread to make ready
@@ -289,8 +313,7 @@ static __attribute__((noinline, noreturn)) void __cgn_scheduler(void) {
         }
     }
 
-    // If there are no waiting or ready threads, we shouldn't be in the scheduler
-    __builtin_unreachable();
+    __cgn_fatal("no runnable threads (deadlock or invalid scheduler state)");
 }
 
 static uint64_t *__cgn_get_thread_return_val(__CGNThread *thread) {
@@ -346,12 +369,13 @@ static __CGNThread *__cgn_add_thread(void **stack) {
     t->ready_next = NULL;
     t->ready_prev = NULL;
 
-    uint32_t new_id = __CGN_THREAD_BLOCK_SIZE * block_pos + pos;
-    if (new_id == UINT32_MAX) {
+    uint64_t new_id = (uint64_t)__CGN_THREAD_BLOCK_SIZE * block_pos + pos;
+    if (new_id >= UINT32_MAX) {
         fprintf(stderr, "seagreen: Maximum thread ID reached (UINT32_MAX)\n");
         abort();
     }
-    t->id = new_id;
+    t->id = (uint32_t)new_id;
+    ++t->generation;
 
     ++__cgn_threadlist.thread_count;
     ++block->used_thread_count;
@@ -378,7 +402,13 @@ static void __cgn_remove_thread(__CGNThreadBlock *block, uint32_t pos) {
     // Remove from ready queue if present
     __cgn_ready_queue_remove(t);
 
-    *t = (__CGNThread){0};
+    uint32_t generation = t->generation;
+    *t = (__CGNThread){.generation = generation};
+    // Never wrap a generation and make an old handle valid again.
+    if (generation == UINT32_MAX) {
+        block->retired_mask[pos / __CGN_IN_USE_CHUNK_SIZE] |=
+            (uint64_t)1 << (pos % __CGN_IN_USE_CHUNK_SIZE);
+    }
     t->state = __CGN_THREAD_STATE_READY;
     t->ready_next = NULL;
     t->ready_prev = NULL;
@@ -425,9 +455,9 @@ void print_threads(void) {
 
             uint64_t stack_ptr = (uint64_t)thread->stack_ptr;
 
-            printf("thread %u:\n\tstate: %s\n\tawaiting: %u\n\tawait count: "
+            printf("thread %u:\n\tstate: %s\n\tawaiting: %" PRIu64 "\n\tawait count: "
                    "%u\n\tptr: %p\n\tstack ptr: %p\n\n",
-                   id, state_to_name(thread->state), thread->awaited_thread_id,
+                   id, state_to_name(thread->state), thread->awaited_handle,
                    thread->awaiting_thread_count, (void*)thread, (void*)stack_ptr);
 
             ++pos;
@@ -475,17 +505,23 @@ __CGN_EXPORT void seagreen_init_rt(void) {
 #if !defined(_WIN32)
     void *sched_alloc =
         mmap(0, sched_alloc_size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_STACK | MAP_GROWSDOWN, -1, 0);
-    __cgn_check_malloc(sched_alloc);
+    if (sched_alloc == MAP_FAILED) __cgn_fatal("scheduler stack mapping failed");
 
     // Put guard page at start; stack grows downward after it
-    mprotect((char *)sched_alloc + __cgn_pagesize, SEAGREEN_MAX_STACK_SIZE, PROT_READ | PROT_WRITE);
+    if (mprotect((char *)sched_alloc + __cgn_pagesize, SEAGREEN_MAX_STACK_SIZE,
+                 PROT_READ | PROT_WRITE) != 0) {
+        __cgn_fatal("scheduler stack protection failed");
+    }
 #else
     void *sched_alloc =
         VirtualAlloc(0, sched_alloc_size, MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS);
-    __cgn_check_malloc(sched_alloc);
+    if (sched_alloc == NULL) __cgn_fatal("scheduler stack allocation failed");
 
     DWORD _oldprot;
-    VirtualProtect((char *)sched_alloc + __cgn_pagesize, SEAGREEN_MAX_STACK_SIZE, PAGE_READWRITE, &_oldprot);
+    if (!VirtualProtect((char *)sched_alloc + __cgn_pagesize, SEAGREEN_MAX_STACK_SIZE,
+                        PAGE_READWRITE, &_oldprot)) {
+        __cgn_fatal("scheduler stack protection failed");
+    }
 #endif
 
     __cgn_sched_stack_alloc = sched_alloc;
@@ -507,7 +543,7 @@ __CGN_EXPORT CGNThreadHandle async_run(__CGNAsyncFn fn, void *arg) {
         __cgn_jumpwithstack(&__cgn_scheduler, __cgn_aligned_sched_stack);
         __builtin_unreachable();
     }
-    return (CGNThreadHandle)t->id;
+    return ((CGNThreadHandle)t->generation << 32) | t->id;
 }
 
 __CGN_EXPORT void seagreen_free_rt(void) {
@@ -587,36 +623,34 @@ __CGN_EXPORT void async_yield(void) {
 }
 
 __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
-    __cgn_curr_thread->awaited_thread_id = handle;
-
-    uint32_t pos = handle % __CGN_THREAD_BLOCK_SIZE;
-    __CGNThreadBlock *block = __cgn_get_block(handle);
-
-    __CGNThread *t = &block->threads[pos];
+    __CGNThread *t = __cgn_get_thread(handle);
+    __cgn_curr_thread->awaited_handle = handle;
+    uint32_t pos = t->id % __CGN_THREAD_BLOCK_SIZE;
+    __CGNThreadBlock *block = __cgn_get_block(t->id);
+    if (t == __cgn_curr_thread) __cgn_fatal("cannot await the current thread");
     uint64_t return_val = 0;
-    if (__cgn_block_slot_in_use(block, pos)) {
-        t->awaiting_thread_count++;
+    t->awaiting_thread_count++;
 
-        /* Because thread is waiting, the curr thread */
-        /* won't be scheduled until awaited thread has */
-        /* finished its execution */
+    /* Because thread is waiting, the curr thread */
+    /* won't be scheduled until awaited thread has */
+    /* finished its execution */
+
+    atomic_signal_fence(memory_order_seq_cst);
+    volatile _Bool loaded = __cgn_savectx(__cgn_curr_thread);
+    atomic_signal_fence(memory_order_seq_cst);
+    if (!loaded) {
+        __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
+        __cgn_ready_queue_remove(__cgn_curr_thread);
 
         atomic_signal_fence(memory_order_seq_cst);
-        volatile _Bool loaded = __cgn_savectx(__cgn_curr_thread);
-        atomic_signal_fence(memory_order_seq_cst);
-        if (!loaded) {
-            __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;
-            __cgn_ready_queue_remove(__cgn_curr_thread);
+        __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
+        __builtin_unreachable();
+    }
 
-            atomic_signal_fence(memory_order_seq_cst);
-            __cgn_jumpwithstack(&__cgn_scheduler, (char *)__cgn_sched_stack_alloc + SEAGREEN_MAX_STACK_SIZE + __cgn_pagesize);
-            __builtin_unreachable();
-        }
-
-        return_val = *__cgn_get_thread_return_val(t);
-        if (!t->awaiting_thread_count) {
-            __cgn_remove_thread(block, pos);
-        }
+    return_val = *__cgn_get_thread_return_val(t);
+    // A ready waiter still owns the result until it has read it.
+    if (--t->awaiting_thread_count == 0) {
+        __cgn_remove_thread(block, pos);
     }
 
     return return_val;

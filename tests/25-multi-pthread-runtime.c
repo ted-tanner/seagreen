@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -18,7 +19,7 @@ typedef struct {
     int expected_result;
 } async_worker_args;
 
-async uint64_t async_worker_func(void *p) {
+uint64_t async_worker_func(void *p) {
     async_worker_args *args = (async_worker_args *)p;
     
     printf("PThread %d: Async worker starting with value %d\n", args->thread_id, args->value);
@@ -32,7 +33,7 @@ async uint64_t async_worker_func(void *p) {
     return args->expected_result;
 }
 
-async uint64_t recursive_worker_func(void *p) {
+uint64_t recursive_worker_func(void *p) {
     async_worker_args *args = (async_worker_args *)p;
     
     printf("PThread %d: Recursive worker starting with value %d\n", args->thread_id, args->value);
@@ -52,7 +53,7 @@ async uint64_t recursive_worker_func(void *p) {
     uint64_t left_result = await(left_handle);
     uint64_t right_result = await(right_handle);
     
-    printf("PThread %d: Recursive worker %d completed with result %llu\n", args->thread_id, args->value, left_result + right_result);
+    printf("PThread %d: Recursive worker %d completed with result %" PRIu64 "\n", args->thread_id, args->value, left_result + right_result);
     
     return left_result + right_result;
 }
@@ -79,7 +80,7 @@ void* pthread_worker(void* arg) {
     
     for (int i = 0; i < args->num_async_threads; i++) {
         uint64_t result = await(handles[i]);
-        printf("PThread %d: Basic async worker %d result: %llu (expected: %d)\n", 
+        printf("PThread %d: Basic async worker %d result: %" PRIu64 " (expected: %d)\n",
                args->thread_id, i, result, worker_args[i].expected_result);
         assert(result == (uint64_t)worker_args[i].expected_result);
     }
@@ -111,7 +112,7 @@ void* pthread_worker(void* arg) {
         CGNThreadHandle fib_handle = async_run(recursive_worker_func, &fib_args);
         uint64_t result = await(fib_handle);
         
-        printf("PThread %d: Fibonacci(%d) = %llu (expected %llu)\n", args->thread_id, n, result, expected);
+        printf("PThread %d: Fibonacci(%d) = %" PRIu64 " (expected %" PRIu64 ")\n", args->thread_id, n, result, expected);
         assert(result == expected);
     }
     
@@ -128,7 +129,7 @@ void* pthread_worker(void* arg) {
     
     for (int i = 0; i < 5; i++) {
         uint64_t result = await(mixed_handles[i]);
-        printf("PThread %d: Mixed worker %d result: %llu (expected: %d)\n", 
+        printf("PThread %d: Mixed worker %d result: %" PRIu64 " (expected: %d)\n",
                args->thread_id, i, result, mixed_args[i].expected_result);
         assert(result == (uint64_t)mixed_args[i].expected_result);
     }
@@ -147,7 +148,7 @@ void* pthread_worker(void* arg) {
     
     for (int i = 0; i < stack_test_threads; i++) {
         uint64_t result = await(stack_handles[i]);
-        printf("PThread %d: Stack test worker %d result: %llu (expected: %d)\n", 
+        printf("PThread %d: Stack test worker %d result: %" PRIu64 " (expected: %d)\n",
                args->thread_id, i, result, stack_args[i].expected_result);
         assert(result == (uint64_t)stack_args[i].expected_result);
     }
