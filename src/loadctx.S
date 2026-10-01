@@ -8,6 +8,8 @@
 
 #include "../include/_seagreen_ctx.h"
 
+.text
+
 .globl __CGN_LOADCTX_SYMBOL
 .globl __CGN_JUMPWITHSTACK_SYMBOL
 
@@ -17,7 +19,7 @@
 __CGN_LOADCTX_SYMBOL:
     movq 0(%rdi), %rsp
 
-    leaq -__CGN_CTX_SAVE_SIZE-128(%rsp), %r10
+    leaq __CGN_CTX_STORAGE_OFFSET(%rdi), %r10
 
     movq 0(%r10), %rbp
     movq 8(%r10), %r11
@@ -27,16 +29,8 @@ __CGN_LOADCTX_SYMBOL:
     movq 40(%r10), %r15
     movq 48(%r10), %rbx
 
-    movdqu 56(%r10), %xmm0
-    movdqu 72(%r10), %xmm1
-    movdqu 88(%r10), %xmm2
-    movdqu 104(%r10), %xmm3
-    movdqu 120(%r10), %xmm4
-    movdqu 136(%r10), %xmm5
-    movdqu 152(%r10), %xmm6
-    movdqu 168(%r10), %xmm7
-
-    ldmxcsr 184(%r10)
+    ldmxcsr 56(%r10)
+    fldcw 60(%r10)
 
     movq $1, %rax
     jmp *%r11
@@ -45,18 +39,17 @@ __CGN_LOADCTX_SYMBOL:
 __CGN_JUMPWITHSTACK_SYMBOL:
     movq %rsi, %rsp
     andq $-16, %rsp
+    subq $8, %rsp
+    movq $0, 0(%rsp)
     jmp *%rdi
 
 #elif defined(__x86_64__) && defined(_WIN64)
-
-__CGN_LOADCTX_SYMBOL_ret_stub:
-    jmp *%rax
 
 .balign 4
 __CGN_LOADCTX_SYMBOL:
     movq 0(%rcx), %rsp
 
-    leaq -__CGN_CTX_SAVE_SIZE-128(%rsp), %r10
+    leaq __CGN_CTX_STORAGE_OFFSET(%rcx), %r10
 
     movq 0(%r10), %rbp
     movq 8(%r10), %r11
@@ -80,6 +73,7 @@ __CGN_LOADCTX_SYMBOL:
     movdqu 216(%r10), %xmm15
 
     ldmxcsr 232(%r10)
+    fldcw 236(%r10)
 
     movq $1, %rax
     jmp *%r11
@@ -87,6 +81,9 @@ __CGN_LOADCTX_SYMBOL:
 .balign 4
 __CGN_JUMPWITHSTACK_SYMBOL:
     movq %rdx, %rsp
+    andq $-16, %rsp
+    subq $40, %rsp
+    movq $0, 0(%rsp)
     jmp *%rcx
 
 #elif defined(__aarch64__)
@@ -96,7 +93,7 @@ __CGN_LOADCTX_SYMBOL:
     ldr x9, [x0, 0]
     mov sp, x9
 
-    sub x9, sp, #__CGN_CTX_SAVE_SIZE
+    add x9, x0, #__CGN_CTX_STORAGE_OFFSET
 
     ldp lr, x19, [x9, 0]
     ldp x20, x21, [x9, 16]
@@ -123,13 +120,13 @@ __CGN_JUMPWITHSTACK_SYMBOL:
     mov sp, x1
     br x0
 
-#elif defined(__riscv__)
+#elif (defined(__riscv) && __riscv_xlen == 64)
 
 .balign 4
 __CGN_LOADCTX_SYMBOL:
     ld sp, 0(a0)
 
-    addi t0, sp, -__CGN_CTX_SAVE_SIZE
+    addi t0, a0, __CGN_CTX_STORAGE_OFFSET
 
     ld ra, 0(t0)
     ld s0, 8(t0)
@@ -145,6 +142,38 @@ __CGN_LOADCTX_SYMBOL:
     ld s10, 88(t0)
     ld s11, 96(t0)
 
+#if defined(__riscv_flen)
+    lw t1, 104(t0)
+    fscsr t1
+#if defined(__riscv_float_abi_double)
+    fld fs0, 112(t0)
+    fld fs1, 120(t0)
+    fld fs2, 128(t0)
+    fld fs3, 136(t0)
+    fld fs4, 144(t0)
+    fld fs5, 152(t0)
+    fld fs6, 160(t0)
+    fld fs7, 168(t0)
+    fld fs8, 176(t0)
+    fld fs9, 184(t0)
+    fld fs10, 192(t0)
+    fld fs11, 200(t0)
+#elif defined(__riscv_float_abi_single)
+    flw fs0, 112(t0)
+    flw fs1, 116(t0)
+    flw fs2, 120(t0)
+    flw fs3, 124(t0)
+    flw fs4, 128(t0)
+    flw fs5, 132(t0)
+    flw fs6, 136(t0)
+    flw fs7, 140(t0)
+    flw fs8, 144(t0)
+    flw fs9, 148(t0)
+    flw fs10, 152(t0)
+    flw fs11, 156(t0)
+#endif
+#endif
+
     li a0, 1
     ret
 
@@ -153,4 +182,8 @@ __CGN_JUMPWITHSTACK_SYMBOL:
     mv sp, a1
     jr a0
 
+#endif
+
+#if defined(__ELF__)
+.section .note.GNU-stack,"",@progbits
 #endif

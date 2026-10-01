@@ -26,13 +26,20 @@ If ye don' heed these warnin's, ye may be squawked at by Seggie the SegFault par
 
 ## Architecture and System Support
 
-SeaGreen has been tested on the following targets (compiled with Zig's cross-compiler, which uses clang and LLVM):
+The scheduler's test suite has been run on `aarch64-macos` and
+`x86_64-macos` in debug and optimized builds.
 
-* `x86_64-linux-gnu` (currently broken)
-* `aarch64-linux-gnu` (currently broken)
-* `x86_64-windows-gnu` (currently broken)
-* `aarch64-windows-gnu` (currently broken)
-* `aarch64-macos`
+The assembly and runtime also cross-compile with Zig for `x86_64-linux-gnu`,
+`aarch64-linux-gnu`, `x86_64-windows-gnu`, and `aarch64-windows-gnu`.
+Execution on those operating systems still needs validation; compilation alone
+is not a claim of full platform support.
+
+On x86_64, ARM64 (including macOS), and the experimental RV64 path, saved registers live in each thread's context
+storage, so subsequent calls cannot overwrite them. The context routines take
+an entire `__CGNThread`, rather than a standalone stack-pointer variable.
+x86_64 stack entry follows the platform calling convention, including Windows
+shadow space. Context switches preserve the ABI's nonvolatile registers and
+floating-point control state.
 
 If you would like to add support for another target, please submit a PR! We'd love to support as many targets as possible. Adding support for a target must not break or affect the performance of an already-supported target.
 

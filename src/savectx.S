@@ -10,6 +10,8 @@
 
 #include "../include/_seagreen_ctx.h"
 
+.text
+
 .globl __CGN_SAVECTX_SYMBOL
 .globl __CGN_SAVENEWCTX_SYMBOL
 
@@ -17,11 +19,12 @@
 
 .balign 4
 __CGN_SAVECTX_SYMBOL:
-    movq %rsp, 0(%rdi)
+    // Resume as if this call had returned, with its return address popped.
+    leaq 8(%rsp), %rax
+    movq %rax, 0(%rdi)
+    leaq __CGN_CTX_STORAGE_OFFSET(%rdi), %r8
 
-    leaq -__CGN_CTX_SAVE_SIZE-128(%rsp), %r8
-
-    movq 8(%rsp), %rax
+    movq 0(%rsp), %rax
     movq %rbp, 0(%r8)
     movq %rax, 8(%r8)
     movq %r12, 16(%r8)
@@ -30,16 +33,8 @@ __CGN_SAVECTX_SYMBOL:
     movq %r15, 40(%r8)
     movq %rbx, 48(%r8)
 
-    movdqu %xmm0, 56(%r8)
-    movdqu %xmm1, 72(%r8)
-    movdqu %xmm2, 88(%r8)
-    movdqu %xmm3, 104(%r8)
-    movdqu %xmm4, 120(%r8)
-    movdqu %xmm5, 136(%r8)
-    movdqu %xmm6, 152(%r8)
-    movdqu %xmm7, 168(%r8)
-
-    stmxcsr 184(%r8)
+    stmxcsr 56(%r8)
+    fnstcw 60(%r8)
 
     movq $0, %rax
     ret
@@ -47,16 +42,14 @@ __CGN_SAVECTX_SYMBOL:
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
     andq $-16, %rsi
+    subq $8, %rsi              // C entry: RSP mod 16 == 8.
+    movq $0, 0(%rsi)           // No caller; thread_entry never returns.
     movq %rsi, 0(%rdi)
 
-    leaq -__CGN_CTX_SAVE_SIZE-128(%rsi), %r8
+    leaq __CGN_CTX_STORAGE_OFFSET(%rdi), %r8
 
     movq $0, 0(%r8)
-#if defined(__APPLE__)
-    leaq ___cgn_thread_entry(%rip), %r9
-#else
-    leaq __cgn_thread_entry(%rip), %r9
-#endif
+    leaq __CGN_THREAD_ENTRY_SYMBOL(%rip), %r9
     movq %r9, 8(%r8)
     movq $0, 16(%r8)
     movq $0, 24(%r8)
@@ -64,29 +57,20 @@ __CGN_SAVENEWCTX_SYMBOL:
     movq $0, 40(%r8)
     movq $0, 48(%r8)
 
-    pxor %xmm0, %xmm0
-    movdqu %xmm0, 56(%r8)
-    movdqu %xmm0, 72(%r8)
-    movdqu %xmm0, 88(%r8)
-    movdqu %xmm0, 104(%r8)
-    movdqu %xmm0, 120(%r8)
-    movdqu %xmm0, 136(%r8)
-    movdqu %xmm0, 152(%r8)
-    movdqu %xmm0, 168(%r8)
-
+    stmxcsr 56(%r8)
+    fnstcw 60(%r8)
     movq $0, %rax
-    stmxcsr 184(%r8)
     ret
 
 #elif defined(__x86_64__) && defined(_WIN64)
 
 .balign 4
 __CGN_SAVECTX_SYMBOL:
-    movq %rsp, 0(%rcx)
+    leaq 8(%rsp), %rax
+    movq %rax, 0(%rcx)
+    leaq __CGN_CTX_STORAGE_OFFSET(%rcx), %r10
 
-    leaq -__CGN_CTX_SAVE_SIZE-128(%rsp), %r10
-
-    movq 8(%rsp), %rax
+    movq 0(%rsp), %rax
     movq %rbp, 0(%r10)
     movq %rax, 8(%r10)
     movq %r12, 16(%r10)
@@ -109,19 +93,23 @@ __CGN_SAVECTX_SYMBOL:
     movdqu %xmm15, 216(%r10)
 
     stmxcsr 232(%r10)
+    fnstcw 236(%r10)
 
     movq $0, %rax
     ret
 
 .balign 4
 __CGN_SAVENEWCTX_SYMBOL:
-    // RCX = thread*, RDX = stack
+    // Reserve a dummy return address and 32 bytes of caller shadow space.
+    andq $-16, %rdx
+    subq $40, %rdx
+    movq $0, 0(%rdx)
     movq %rdx, 0(%rcx)
 
-    leaq -__CGN_CTX_SAVE_SIZE-128(%rdx), %r10
+    leaq __CGN_CTX_STORAGE_OFFSET(%rcx), %r10
 
     movq $0, 0(%r10)
-    leaq __cgn_thread_entry(%rip), %r11
+    leaq __CGN_THREAD_ENTRY_SYMBOL(%rip), %r11
     movq %r11, 8(%r10)
     movq $0, 16(%r10)
     movq $0, 24(%r10)
@@ -131,20 +119,21 @@ __CGN_SAVENEWCTX_SYMBOL:
     movq $0, 56(%r10)
     movq $0, 64(%r10)
 
-    pxor %xmm6, %xmm6
-    movdqu %xmm6, 72(%r10)
-    movdqu %xmm6, 88(%r10)
-    movdqu %xmm6, 104(%r10)
-    movdqu %xmm6, 120(%r10)
-    movdqu %xmm6, 136(%r10)
-    movdqu %xmm6, 152(%r10)
-    movdqu %xmm6, 168(%r10)
-    movdqu %xmm6, 184(%r10)
-    movdqu %xmm6, 200(%r10)
-    movdqu %xmm6, 216(%r10)
+    pxor %xmm0, %xmm0
+    movdqu %xmm0, 72(%r10)
+    movdqu %xmm0, 88(%r10)
+    movdqu %xmm0, 104(%r10)
+    movdqu %xmm0, 120(%r10)
+    movdqu %xmm0, 136(%r10)
+    movdqu %xmm0, 152(%r10)
+    movdqu %xmm0, 168(%r10)
+    movdqu %xmm0, 184(%r10)
+    movdqu %xmm0, 200(%r10)
+    movdqu %xmm0, 216(%r10)
 
     movq $0, %rax
     stmxcsr 232(%r10)
+    fnstcw 236(%r10)
     ret
 
 #elif defined(__aarch64__)
@@ -154,7 +143,7 @@ __CGN_SAVECTX_SYMBOL:
     mov x9, sp
     str x9, [x0, 0]
 
-    sub x9, sp, #__CGN_CTX_SAVE_SIZE
+    add x9, x0, #__CGN_CTX_STORAGE_OFFSET
 
     stp lr, x19, [x9, 0]
     stp x20, x21, [x9, 16]
@@ -180,7 +169,7 @@ __CGN_SAVECTX_SYMBOL:
 __CGN_SAVENEWCTX_SYMBOL:
     str x1, [x0, 0]
 
-    sub x9, x1, #__CGN_CTX_SAVE_SIZE
+    add x9, x0, #__CGN_CTX_STORAGE_OFFSET
 
 #if defined(__APPLE__)
     adrp x10, ___cgn_thread_entry@PAGE
@@ -189,18 +178,17 @@ __CGN_SAVENEWCTX_SYMBOL:
     adrp x10, __cgn_thread_entry
     add  x10, x10, #:lo12:__cgn_thread_entry
 #endif
-    stp  x10, xzr, [x9, 0]
-    stp x19, x20, [x9, 16]
-    stp x21, x22, [x9, 32]
-    stp x23, x24, [x9, 48]
-    stp x25, x26, [x9, 64]
-    stp x27, x28, [x9, 80]
-    str xzr, [x9, 96]
+    stp x10, xzr, [x9, 0]
+    stp xzr, xzr, [x9, 16]
+    stp xzr, xzr, [x9, 32]
+    stp xzr, xzr, [x9, 48]
+    stp xzr, xzr, [x9, 64]
+    stp xzr, xzr, [x9, 80]
 
     mrs x10, FPCR
-    str w10, [x9, 100]
+    str w10, [x9, 96]
     mrs x10, FPSR
-    str w10, [x9, 104]
+    str w10, [x9, 100]
 
     stp q8, q9, [x9, 112]
     stp q10, q11, [x9, 144]
@@ -210,12 +198,12 @@ __CGN_SAVENEWCTX_SYMBOL:
     mov w0, #0
     ret
 
-#elif defined(__riscv__)
+#elif (defined(__riscv) && __riscv_xlen == 64)
 
 .balign 4
 __CGN_SAVECTX_SYMBOL:
     sd sp, 0(a0)
-    addi t0, sp, -__CGN_CTX_SAVE_SIZE
+    addi t0, a0, __CGN_CTX_STORAGE_OFFSET
 
     sd ra, 0(t0)
     sd s0, 8(t0)
@@ -231,6 +219,38 @@ __CGN_SAVECTX_SYMBOL:
     sd s10, 88(t0)
     sd s11, 96(t0)
 
+#if defined(__riscv_flen)
+    frcsr t1
+    sw t1, 104(t0)
+#if defined(__riscv_float_abi_double)
+    fsd fs0, 112(t0)
+    fsd fs1, 120(t0)
+    fsd fs2, 128(t0)
+    fsd fs3, 136(t0)
+    fsd fs4, 144(t0)
+    fsd fs5, 152(t0)
+    fsd fs6, 160(t0)
+    fsd fs7, 168(t0)
+    fsd fs8, 176(t0)
+    fsd fs9, 184(t0)
+    fsd fs10, 192(t0)
+    fsd fs11, 200(t0)
+#elif defined(__riscv_float_abi_single)
+    fsw fs0, 112(t0)
+    fsw fs1, 116(t0)
+    fsw fs2, 120(t0)
+    fsw fs3, 124(t0)
+    fsw fs4, 128(t0)
+    fsw fs5, 132(t0)
+    fsw fs6, 136(t0)
+    fsw fs7, 140(t0)
+    fsw fs8, 144(t0)
+    fsw fs9, 148(t0)
+    fsw fs10, 152(t0)
+    fsw fs11, 156(t0)
+#endif
+#endif
+
     li a0, 0
     ret
 
@@ -238,7 +258,7 @@ __CGN_SAVECTX_SYMBOL:
 __CGN_SAVENEWCTX_SYMBOL:
     sd a1, 0(a0)
 
-    addi t0, a1, -__CGN_CTX_SAVE_SIZE
+    addi t0, a0, __CGN_CTX_STORAGE_OFFSET
 
     la t1, __cgn_thread_entry
     sd t1, 0(t0)
@@ -255,7 +275,43 @@ __CGN_SAVENEWCTX_SYMBOL:
     sd s10, 88(t0)
     sd s11, 96(t0)
 
+#if defined(__riscv_flen)
+    frcsr t1
+    sw t1, 104(t0)
+#if defined(__riscv_float_abi_double)
+    fsd fs0, 112(t0)
+    fsd fs1, 120(t0)
+    fsd fs2, 128(t0)
+    fsd fs3, 136(t0)
+    fsd fs4, 144(t0)
+    fsd fs5, 152(t0)
+    fsd fs6, 160(t0)
+    fsd fs7, 168(t0)
+    fsd fs8, 176(t0)
+    fsd fs9, 184(t0)
+    fsd fs10, 192(t0)
+    fsd fs11, 200(t0)
+#elif defined(__riscv_float_abi_single)
+    fsw fs0, 112(t0)
+    fsw fs1, 116(t0)
+    fsw fs2, 120(t0)
+    fsw fs3, 124(t0)
+    fsw fs4, 128(t0)
+    fsw fs5, 132(t0)
+    fsw fs6, 136(t0)
+    fsw fs7, 140(t0)
+    fsw fs8, 144(t0)
+    fsw fs9, 148(t0)
+    fsw fs10, 152(t0)
+    fsw fs11, 156(t0)
+#endif
+#endif
+
     li a0, 0
     ret
 
+#endif
+
+#if defined(__ELF__)
+.section .note.GNU-stack,"",@progbits
 #endif

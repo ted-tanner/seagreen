@@ -500,7 +500,7 @@ __CGN_EXPORT CGNThreadHandle async_run(__CGNAsyncFn fn, void *arg) {
     t->fn = fn;
     t->arg = arg;
     atomic_signal_fence(memory_order_seq_cst);
-    volatile _Bool loaded = __cgn_savenewctx(&t->stack_ptr, stack);
+    volatile _Bool loaded = __cgn_savenewctx(t, stack);
     atomic_signal_fence(memory_order_seq_cst);
     if (loaded) {
         atomic_signal_fence(memory_order_seq_cst);
@@ -572,7 +572,7 @@ __CGN_EXPORT void seagreen_free_rt(void) {
 
 __CGN_EXPORT void async_yield(void) {
     atomic_signal_fence(memory_order_seq_cst);
-    volatile _Bool loaded = __cgn_savectx(&__cgn_curr_thread->stack_ptr);
+    volatile _Bool loaded = __cgn_savectx(__cgn_curr_thread);
     atomic_signal_fence(memory_order_seq_cst);
     if (!loaded) {
         if (__cgn_curr_thread->state == __CGN_THREAD_STATE_RUNNING) {
@@ -602,7 +602,7 @@ __CGN_EXPORT uint64_t await(CGNThreadHandle handle) {
         /* finished its execution */
 
         atomic_signal_fence(memory_order_seq_cst);
-        volatile _Bool loaded = __cgn_savectx(&__cgn_curr_thread->stack_ptr);
+        volatile _Bool loaded = __cgn_savectx(__cgn_curr_thread);
         atomic_signal_fence(memory_order_seq_cst);
         if (!loaded) {
             __cgn_curr_thread->state = __CGN_THREAD_STATE_WAITING;

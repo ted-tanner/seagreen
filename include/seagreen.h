@@ -1,6 +1,6 @@
 #ifndef SEAGREEN_H
 
-#if !defined(__x86_64__) && !defined(__aarch64__) && !defined(__riscv__)
+#if !defined(__x86_64__) && !defined(__aarch64__) && !(defined(__riscv) && __riscv_xlen == 64)
 #error "libseagreen does not support this architecture"
 #endif
 
@@ -9,6 +9,7 @@
 #endif
 
 #include <stdatomic.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -133,7 +134,7 @@ typedef struct __CGNThreadCtx_ {
     __CGNVector128 v15;
 } __CGNThreadCtx;
 
-#elif defined(__riscv__)
+#elif (defined(__riscv) && __riscv_xlen == 64)
 
 typedef struct __CGNThreadCtx_ {
     uint64_t ra;
@@ -173,6 +174,9 @@ typedef uint64_t (*__CGNAsyncFn)(void *);
 // for performance here.
 typedef struct __CGNThread_ {
     void *stack_ptr;
+#ifdef __CGN_CTX_IN_THREAD
+    unsigned char saved_context[__CGN_CTX_SAVE_SIZE];
+#endif
     
     __CGNAsyncFn fn;
     void *arg;
@@ -187,6 +191,11 @@ typedef struct __CGNThread_ {
     struct __CGNThread_ *ready_next;
     struct __CGNThread_ *ready_prev;
 } __CGNThread;
+
+#ifdef __CGN_CTX_IN_THREAD
+_Static_assert(offsetof(__CGNThread, saved_context) == __CGN_CTX_STORAGE_OFFSET,
+               "saved context offset must match assembly");
+#endif
 
 typedef struct __CGNThreadBlock_ {
     struct __CGNThreadBlock_ *next;
@@ -215,8 +224,9 @@ typedef struct __CGNReadyQueue_ {
 
 extern __attribute__((noinline, noreturn)) void __cgn_loadctx(__CGNThread *thread);
 extern __attribute__((noinline, noreturn)) void __cgn_jumpwithstack(void *func_ptr, void *stack_ptr);
-extern __attribute__((noinline, returns_twice)) _Bool __cgn_savectx(void **stack_ptr_location);
-extern __attribute__((noinline, returns_twice)) _Bool __cgn_savenewctx(void **stack_ptr_location, void *stack);
+// Save routines require the entire thread, including its register storage.
+extern __attribute__((noinline, returns_twice)) _Bool __cgn_savectx(__CGNThread *thread);
+extern __attribute__((noinline, returns_twice)) _Bool __cgn_savenewctx(__CGNThread *thread, void *stack);
 
 __attribute__((noreturn)) void __cgn_thread_entry(void);
 
