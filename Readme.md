@@ -47,6 +47,7 @@ int main(void) {
     uint64_t a = 3;
     CGNThreadHandle t1 = async_run(foo, &args);
     CGNThreadHandle t2 = async_run(bar, &a);
+    printf("foo() and bar() launched\n");
 
     uint64_t foo_result = await(t1);
     uint64_t bar_result = await(t2);
@@ -61,6 +62,7 @@ int main(void) {
 Output:
 
 ```text
+foo() and bar() launched
 foo() started
 bar() started
 foo() finished
