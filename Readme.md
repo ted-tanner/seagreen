@@ -8,11 +8,6 @@ An easy-to-use green threading library ~~for Sea~~ for C.
 
 SeaGreen uses stackful [coroutines](https://en.wikipedia.org/wiki/Coroutine) to change program flow in an intuitive way that allows blocking tasks (such as disk or network IO) to be performed asynchronously on a single OS thread. A simple and efficient scheduler manages "green threads"--lightweight subroutines that execute concurrently on a single OS thread. The performance and memory cost of managing and switching between green threads is orders of magnitude smaller than the penalty that is paid to have the OS manage those threads.
 
-Some niceties of SeaGreen:
-
-* No [function coloring](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/) difficulties. Green threads may be launched from anywhere in your program, making it super easy to integrate libseagreen into existing codebases.
-* SeaGreen is intuitive to use and won't turn your existing code into spaghetti.
-
 ## Examples
 
 ### Context switching on a single OS thread
